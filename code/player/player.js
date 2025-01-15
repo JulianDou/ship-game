@@ -1,5 +1,3 @@
-// This project uses P5Play.
-
 let player = {
 
 	stats : {
@@ -36,29 +34,9 @@ let player = {
 		sensMouvement: 1, // 0 = recule, 1 = arrêté, 2 = avance
 		boutonMouvement: false,
 		direction: 0, // En degrés
-		vagues: [],
-		functions: {
-			createVague: function(){
-				let vague = new Sprite(player.sprite.x, player.sprite.y);
-				vague.width = 64;
-				vague.height = 64;
-				vague.image = loadImage('assets/ripple.png');
-				vague.collider = 'none';
-				vague.layer = player.sprite.layer - 1;
-				vague.opacity = 1;
-				player.utility.vagues.push(vague);
-			}
-		}
 	},
 
 	functions: {
-		runAll : function(){
-			player.functions.inputs();
-			player.functions.mouvement();
-			player.functions.rotation();
-			player.functions.vagues();
-		},
-
 		inputs : function(){
 			if (kb.pressing('w') && player.utility.boutonMouvement == false) {
 				player.utility.boutonMouvement = true;
@@ -116,62 +94,9 @@ let player = {
 				player.sprite.direction = player.utility.direction;
 				player.sprite.rotation = player.utility.direction;
 			}
-		},
-
-		vagues: function(){
-			for (let i=0; i<player.utility.vagues.length; i++){
-				let vague = player.utility.vagues[i];
-				vague.opacity -= 0.02;
-				vague.scale += 0.02;
-				if (vague.opacity <= 0){
-					player.utility.vagues.splice(i, 1);
-					vague.remove();
-				}
-			}
-			if (frameCount % 10 == 0 && player.sprite.speed > 0){
-				player.utility.functions.createVague();
-			}
 		}
 	}
 
 };
 
-let ennemi2 = {};
-
-function setup() {
-	frameRate(60);
-
-	new Canvas(windowWidth, windowHeight);
-	displayMode('centered', 'pixelated', 8);
-
-	player.sprite = new Sprite(windowWidth/2, windowHeight/2);
-	player.sprite.width = 64;
-	player.sprite.height = 32;
-	player.sprite.scale = 1.2;
-	player.sprite.collider = 'dynamic';
-	player.sprite.image = loadImage('assets/player.png');
-	player.sprite.image.direction = 90;
-
-	let ennemi = {};
-	ennemi.sprite = new Sprite(windowWidth/2 + 100, windowHeight/2 + 45, 'rectangle');
-	ennemi.sprite.collider = 'static';
-	ennemi.sprite.drag = 2;
-	ennemi.sprite.rotationDrag = 2;
-	ennemi.sprite.text = ennemi.sprite.collider;
-
-	ennemi2.sprite = new Sprite(windowWidth/2 + 100, windowHeight/2 - 45, 'rectangle');
-	ennemi2.sprite.collider = 'dynamic';
-	ennemi2.sprite.drag = 2;
-	ennemi2.sprite.rotationDrag = 2;
-	ennemi2.sprite.text = ennemi2.sprite.collider;
-}
-
-
-function draw() {
-	background('skyblue');
-	camera.x = player.sprite.x;
-	camera.y = player.sprite.y;
-
-	player.functions.runAll();
-	player.sprite.layer = 100;
-}
+export { player };
