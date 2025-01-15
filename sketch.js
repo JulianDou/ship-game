@@ -55,7 +55,6 @@ let player = {
 			else if (!kb.pressing('w') && !kb.pressing('s')){
 				player.utility.boutonMouvement = false;
 			}
-			console.log(player.utility.sensMouvement);
 		},
 	
 		mouvement : function(){
@@ -98,16 +97,38 @@ let player = {
 };
 
 function setup() {
-	new Canvas(500, 500);
-	displayMode('centered');
+	new Canvas(windowWidth, windowHeight);
+	displayMode('centered', 'pixelated', 8);
 
-	player.sprite = new Sprite(64, 64);
-	player.sprite.color = 'brown';
+	player.sprite = new Sprite(windowWidth/2, windowHeight/2);
+	player.sprite.width = 64;
+	player.sprite.height = 32;
+	player.sprite.scale = 1.2;
+	player.sprite.collider = 'dynamic';
+	player.sprite.image = loadImage('assets/player.png');
+	player.sprite.image.direction = 90;
+
+	let ennemi = {};
+	ennemi.sprite = new Sprite(windowWidth/2 + 100, windowHeight/2 + 45, 'rectangle');
+	ennemi.sprite.collider = 'static';
+	ennemi.sprite.drag = 2;
+	ennemi.sprite.rotationDrag = 2;
+	ennemi.sprite.text = ennemi.sprite.collider;
+
+	let ennemi2 = {};
+	ennemi2.sprite = new Sprite(windowWidth/2 + 100, windowHeight/2 - 45, 'rectangle');
+	ennemi2.sprite.collider = 'dynamic';
+	ennemi2.sprite.drag = 2;
+	ennemi2.sprite.rotationDrag = 2;
+	ennemi2.sprite.text = ennemi2.sprite.collider;
+	
 }
 
 
 function draw() {
 	background('skyblue');
+	camera.x = player.sprite.x;
+	camera.y = player.sprite.y;
 
 	player.functions.inputs();
 	player.functions.mouvement();
