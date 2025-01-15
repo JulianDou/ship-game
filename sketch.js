@@ -44,7 +44,7 @@ let player = {
 				vague.height = 64;
 				vague.image = loadImage('assets/ripple.png');
 				vague.collider = 'none';
-				vague.layer = player.sprite.layer - 1;
+				vague.layer = -1;
 				vague.opacity = 1;
 				player.utility.vagues.push(vague);
 			}
