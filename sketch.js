@@ -55,17 +55,15 @@ let player = {
 			else if (!kb.pressing('w') && !kb.pressing('s')){
 				player.utility.boutonMouvement = false;
 			}
+			console.log(player.utility.sensMouvement);
 		},
 	
 		mouvement : function(){
-			if (player.utility.sensMouvement == 0){
-				player.sprite.speed = -player.stats.bateau.vitesse;
-			}
-			else if (player.utility.sensMouvement == 2){
-				player.sprite.speed = player.stats.bateau.vitesse;
-			}
-			else if (player.utility.sensMouvement == 1){
+			if (player.utility.sensMouvement == 1){
 				player.sprite.speed = 0;
+			}
+			else {
+				player.sprite.speed = player.stats.bateau.vitesse;
 			}
 		},
 
@@ -86,8 +84,14 @@ let player = {
 					player.utility.direction += player.stats.bateau.maniabilite;
 				}
 			}
-			player.sprite.direction = player.utility.direction;
-			player.sprite.rotation = player.sprite.direction;
+			if (player.utility.sensMouvement == 0){
+				player.sprite.direction = (player.utility.direction + 180) % 360;
+				player.sprite.rotation = player.utility.direction;
+			}
+			else {
+				player.sprite.direction = player.utility.direction;
+				player.sprite.rotation = player.utility.direction;
+			}
 		}
 	}
 
