@@ -726,7 +726,7 @@ function setup() {
 let backup = {
   utility: {
     collid: "static",
-    opa: 1,
+    opa: 0,
     menu: false,
 
     functions: {
@@ -1578,17 +1578,15 @@ let backup = {
 
         menu = false;
 
-        if (back.buttonmenu.mouse.pressed() && backup.utility.menu === false) {
-          console.log("buttonmenu pressed");
+        if (back.buttonmenu.mouse.pressed() && backup.utility.menu === true) {
           opa = 0;
           collid = "none";
-          backup.utility.menu = true;
+          backup.utility.menu = false;
         } else if (
           back.buttonmenu.mouse.pressed() &&
-          backup.utility.menu === true
+          backup.utility.menu === false
         ) {
-          console.log("buttonmenu pressed");
-          backup.utility.menu = false;
+          backup.utility.menu = true;
           opa = 1;
           collid = "static";
         }
@@ -1693,7 +1691,6 @@ let backup = {
         back.textRicochets.collider = collid;
 
         if (back.buttonmore.mouse.pressed()) {
-          console.log("buttonmore pressed");
           player.stats.bateau.vitesse += 0.1;
           player.stats.bateau.vitesse = parseFloat(
             player.stats.bateau.vitesse.toFixed(2)
