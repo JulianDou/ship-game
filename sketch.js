@@ -152,9 +152,9 @@ let player = {
 		},
 		expstat: function(){
 			if (player.stats.bateau.experience >= player.stats.bateau.expMax){
-				player.stats.bateau.experience = 0;
+				player.stats.bateau.experience = player.stats.bateau.experience -player.stats.bateau.expMax;
 				player.stats.bateau.niveau += 1;
-				player.stats.bateau.expMax = player.stats.bateau.expMax * 1.5;
+				player.stats.bateau.expMax = player.stats.bateau.expMax + 50;
 			}
 		},
 
@@ -162,6 +162,8 @@ let player = {
 	}
 
 };
+
+
 
 let viseur = {
 	utility : {
@@ -297,6 +299,23 @@ let projectile = {
 		},
 
 		update : function(){
+
+			for (let boulet of projectile.utility.projectiles) {
+				for (let mob of speudomob.utility.speudomob) {
+					if (boulet.overlaps(mob)) {
+						mob.vie -= 1;
+						if (player.stats.arme.penetration<= 1){
+						boulet.remove();
+					}
+						if (mob.vie <= 0) {
+							mob.remove();
+							
+						}
+					}
+				}
+			}
+			
+
 			for (let boulet of projectile.utility.projectiles){
 				if (boulet.source = "player"){
 					if (dist(boulet.origine.x, boulet.origine.y, boulet.x, boulet.y) >= boulet.porteeMax){
@@ -305,6 +324,7 @@ let projectile = {
 						projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
 					}
 				}
+
 			}
 		}
 	}
@@ -342,15 +362,39 @@ let expblock = {
 	functions: {
 		runAll : function(){
 			expblock.functions.update();
+			
 		},
 
 		update : function(){
 			for (let i = expblock.utility.expblock.length - 1; i >= 0; i--) {
 				let expBlock = expblock.utility.expblock[i];
-				if (player.sprite.collides(expBlock)) {
+				if (player.sprite.overlaps(expBlock)) {
 					player.stats.bateau.experience += expBlock.experience;
 					expBlock.remove();
 					expblock.utility.expblock.splice(i, 1);
+				}
+			}
+
+			for (let mob of speudomob.utility.speudomob) {
+				if (mob.vie <= 0) {
+					let totalExperience = mob.experience;
+					console.log(totalExperience);
+					while (totalExperience > 0) {
+						let offsetX = random(-50, 50);
+						let offsetY = random(-50, 50);
+						if (totalExperience >= expblock.types.darkGreen.experience) {
+							expblock.functions.createExpBlock(expblock.types.darkGreen, mob.x + offsetX, mob.y + offsetY);
+							totalExperience -= expblock.types.darkGreen.experience;
+						} else if (totalExperience >= expblock.types.green.experience) {
+							expblock.functions.createExpBlock(expblock.types.green, mob.x + offsetX, mob.y + offsetY);
+							totalExperience -= expblock.types.green.experience;
+						} else {
+							expblock.functions.createExpBlock(expblock.types.lightGreen, mob.x + offsetX, mob.y + offsetY);
+							totalExperience -= expblock.types.lightGreen.experience;
+						}
+					}
+					mob.remove();
+					speudomob.utility.speudomob.splice(speudomob.utility.speudomob.indexOf(mob), 1);
 				}
 			}
 		},
@@ -362,17 +406,55 @@ let expblock = {
 			expBlock.color = type.color;
 			expBlock.scale = type.scale;
 			expBlock.experience = type.experience;
+			expBlock.overlaps = false;
+			expBlock.collider = "none";
 			expblock.utility.expblock.push(expBlock);
 		}
 	},
 
 	types: {
-		lightGreen: { color: "lightgreen", scale: 0.5, experience: 10 },
-		green: { color: "green", scale: 1, experience: 50 },
-		darkGreen: { color: "darkgreen", scale: 1.5, experience: 100 }
+		lightGreen: { color: "lightgreen", scale: 0.4, experience: 10 },
+		green: { color: "green", scale: 0.6, experience: 50 },
+		darkGreen: { color: "darkgreen", scale: 0.8, experience: 100 }
 	}
 }
 	
+let speudomob = {
+
+	utility : {
+		speudomob: [],
+	},
+
+	functions: {
+		runAll : function(){
+			speudomob.functions.update();
+			
+		},
+
+		update : function(){
+		
+			
+
+		},
+
+		createSpeudoMob: function(x, y) {
+			let speudoMob = new Sprite(x, y);
+			speudoMob.width = 50;
+			speudoMob.height = 50;
+			speudoMob.color = "red";
+			speudoMob.collider = "dynamic";
+			speudoMob.vie = 3;
+			speudoMob.experience = 470;
+			speudomob.utility.speudomob.push(speudoMob);
+		}
+		
+	},
+
+
+	
+}
+
+
 
 
 
@@ -429,8 +511,7 @@ function setup() {
 	exptext.textColor = "white";
 	exptext.layer=1000000;
 
-	expblock.sprite = new Sprite((windowWidth/2)+50, (windowHeight/2)+250,50,50);
-	expblock.sprite.shape = "circle";
+	
 	
 	
 	viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
@@ -454,6 +535,10 @@ function setup() {
 	reticule.sprite.image = loadImage('assets/crosshair.png');
 
     backup.functions.initialize();
+
+	speudomob.functions.createSpeudoMob(windowWidth/2+100, windowHeight/2-200);
+
+	
 }
 
 
@@ -871,7 +956,7 @@ function draw() {
 	reload.x = player.sprite.x - (windowWidth / 2) + 180;
 	reload.y = player.sprite.y - (windowHeight / 2) + 100;
 	
-	player.stats.bateau.experience=player.stats.bateau.experience+1;
+
 
 	niveautext.text = "Niveau : " + player.stats.bateau.niveau;
 	exptext.text = "Exp : " + player.stats.bateau.experience;
@@ -889,12 +974,14 @@ function draw() {
 		
 	camera.x = player.sprite.x;
 	camera.y = player.sprite.y;
-
+	expblock.functions.runAll();
 	player.functions.runAll();
 	viseur.functions.runAll();
 	arme.functions.runAll();
 	reticule.functions.runAll();
 	projectile.functions.runAll();
+	speudomob.functions.runAll();
+	
 
 	player.sprite.layer = 100;
 	viseur.sprite.layer = 101;
