@@ -523,8 +523,6 @@ let ennemi = {
 
 					mob.functions.checkHit();
 
-					console.log("test: ", ennemi.stats.bateau.vie);
-
 				},
 
 				checkHit : function(){
