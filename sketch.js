@@ -387,6 +387,20 @@ let expblock = {
           expBlock.remove();
           expblock.utility.expblock.splice(i, 1);
         }
+
+		if (expBlock.timer === undefined) {
+			expBlock.timer = 0;
+		} else {
+			expBlock.timer++;
+		}
+
+		let randomexp = random(300, 50000);
+
+		if (expBlock.timer >= randomexp ) { // 5 à 10 secondes
+			console.log(randomexp);
+			expBlock.remove();
+			expblock.utility.expblock.splice(i, 1);
+		}
       }
     },
 
@@ -428,6 +442,7 @@ let expblock = {
       expBlock.experience = type.experience;
       expBlock.overlaps = false;
       expBlock.collider = "none";
+	  expBlock.layer = -1;
       expblock.utility.expblock.push(expBlock);
     },
   },
@@ -508,23 +523,27 @@ let ennemi = {
             }
           }
           mob.speed = mob.stats.bateau.vitesse;
-        },
+		},
 
-        update: function () {
-          mob.functions.mouvement();
+		update: function () {
+		  mob.functions.mouvement();
 
-          if (frameCount % 15 == 0) {
-            spawnRoutine.utility.functions.createVague(mob.x, mob.y);
-          }
+		  if (frameCount % 15 == 0) {
+			spawnRoutine.utility.functions.createVague(mob.x, mob.y);
+		  }
 
-          if (mob.stats.bateau.vie <= 0) {
-            mob.functions.die();
-          }
+		  if (mob.stats.bateau.vie <= 0) {
+			mob.functions.die();
+		  }
 
-          mob.functions.checkHit();
-        },
+		  mob.functions.checkHit();
+		 
+		},
 
-        checkHit: function () {
+
+		
+
+		checkHit: function () {
           let check = false;
           for (let boulet of projectile.utility.projectiles) {
             if (mob.overlaps(boulet)) {
@@ -565,11 +584,14 @@ let ennemi = {
       mob.width = 64;
       mob.height = 32;
       mob.scale = 1.2;
-      mob.collider = "none";
+      mob.collider = "dinamic";
       mob.drag = 10;
       mob.rotationDrag = 1;
       mob.mass = 1;
       mob.image = loadImage("assets/ennemi.png");
+	  mob.layer = 1;
+	  
+
 
       spawnRoutine.utility.ennemis.push(mob);
     },
@@ -648,6 +670,111 @@ let spawnRoutine = {
   },
 };
 
+let iles = {
+	utility: {
+		iles: [],
+		timerseconde: 0,
+	},
+
+	functions: {
+		runAll: function () {
+			iles.functions.removeile();
+		},
+
+		create: function (numIles) {
+			let numbermaxiles = 5;
+			if (iles.utility.iles.length <= numbermaxiles) {
+				for (let i = 0; i < numIles; i++) {
+					let x, y;
+					let validPosition = false;
+					while (!validPosition) {
+						x = random(0, windowWidth);
+						y = random(0, windowHeight);
+						validPosition = iles.functions.isValidPosition(x, y);
+					}
+					let ile = iles.functions.createIlestart(x, y);
+					iles.utility.iles.push(ile);
+				}
+			}
+		},
+
+		isValidPosition: function (x, y) {
+			let minDistance = 500; // Minimum distance between islands
+			for (let ile of iles.utility.iles) {
+				for (let sprite of ile) {
+					if (dist(x, y, sprite.x, sprite.y) < minDistance) {
+						return false;
+					}
+				}
+			}
+			return true;
+		},
+
+		createIlestart: function (x, y) {
+			let ile = [];
+			let directions = [
+				{ x: 64, y: 0 },
+				{ x: -64, y: 0 },
+				{ x: 0, y: 64 },
+				{ x: 0, y: -64 },
+			];
+
+			let currentX = x;
+			let currentY = y;
+
+			let numberIle = floor(random(15, 40));
+
+			for (let i = 0; i < numberIle; i++) {
+				let sprite = new Sprite(currentX, currentY);
+				sprite.width = 64;
+				sprite.height = 64;
+				sprite.collider = "static";
+				sprite.layer = -1;
+				sprite.color = "green";
+				sprite.stroke = '0';
+				ile.push(sprite);
+
+				let direction = random(directions);
+				currentX += direction.x;
+				currentY += direction.y;
+			}
+
+			return ile;
+		},
+
+		removeile: function () {
+			for (let i = iles.utility.iles.length - 1; i >= 0; i--) {
+				let ile = iles.utility.iles[i];
+				let allSpritesOutOfScreen = true;
+				for (let sprite of ile) {
+					let distance = dist(sprite.x, sprite.y, player.sprite.x, player.sprite.y);
+					if (distance <= max(windowWidth*1.5, windowHeight*1.5)) {
+						allSpritesOutOfScreen = false;
+						break;
+					}
+				}
+				if (allSpritesOutOfScreen) {
+					for (let sprite of ile) {
+						sprite.remove();
+					}
+					iles.utility.iles.splice(i, 1);
+					iles.utility.timerseconde = 0; // Reset timer when an island is removed
+				}
+			}
+
+			// Create new island after 5 seconds
+			if (iles.utility.timerseconde >= 500) {
+				let newX = player.sprite.x + cos(radians(player.utility.direction)) * (windowWidth + 100);
+				let newY = player.sprite.y + sin(radians(player.utility.direction)) * (windowHeight - 100);
+				let newIle = iles.functions.createIlestart(newX, newY);
+				iles.utility.iles.push(newIle);
+				iles.utility.timerseconde = 0; // Reset timer after creating a new island
+			} else {
+				iles.utility.timerseconde++;
+			}
+		},
+	},
+};
 
 
 
@@ -721,6 +848,8 @@ function setup() {
   reference.collider = "static";
 
   backup.utility.functions.initialize();
+
+  iles.functions.create(5);
 }
 
 let backup = {
@@ -1873,6 +2002,10 @@ let backup = {
           back.textRicochets.text =
             "Ricochets : " + player.stats.arme.ricochets;
         }
+
+
+		
+	
       },
     },
   },
@@ -1925,6 +2058,7 @@ function draw() {
   projectile.functions.runAll();
   spawnRoutine.functions.runAll();
   expblock.functions.runAll();
+  iles.functions.runAll();
 
   backup.utility.functions.run();
 
