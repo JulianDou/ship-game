@@ -18,7 +18,7 @@ let player = {
 		},
 		arme: {
 			degats: {
-				base: 10.00,
+				base: 40.00,
 				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
 				dureeFeu: 5, // En secondes
 			},
@@ -322,19 +322,25 @@ let projectile = {
 			projectile.functions.update();
 		},
 
-		update : function(){
-			for (let boulet of projectile.utility.projectiles){
-				if (boulet.source = "player"){
-					if (dist(boulet.origine.x, boulet.origine.y, boulet.x, boulet.y) >= boulet.porteeMax){
-						player.utility.functions.createVague(boulet.x, boulet.y);
-						boulet.remove();
-						projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
-					}
+		checkDistance : function(boulet){
+			if (boulet.source = "player"){
+				if (dist(boulet.origine.x, boulet.origine.y, boulet.x, boulet.y) >= boulet.porteeMax){
+					player.utility.functions.createVague(boulet.x, boulet.y);
+					boulet.remove();
+					projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
 				}
 			}
+		},
+
+		update : function(){
+			for (let boulet of projectile.utility.projectiles){
+				projectile.functions.checkDistance(boulet);
+			}
 		}
+
 	}
 }
+
 
 let reticule = {
 	functions: {
@@ -366,6 +372,68 @@ let reticule = {
 	}
 }
 
+let expblock = {
+	utility : {
+		expblock: [],
+	},
+
+	functions: {
+		runAll : function(){
+			expblock.functions.update();
+			
+		},
+
+		update : function(){
+			for (let i = expblock.utility.expblock.length - 1; i >= 0; i--) {
+				let expBlock = expblock.utility.expblock[i];
+				if (player.sprite.overlaps(expBlock)) {
+					player.stats.bateau.experience += expBlock.experience;
+					expBlock.remove();
+					expblock.utility.expblock.splice(i, 1);
+				}
+			}
+		},
+
+		dropEXP : function(amount, x, y){
+			while (amount > 0) {
+				let offsetX = random(-50, 50);
+				let offsetY = random(-50, 50);
+				if (amount >= expblock.types.darkGreen.experience) {
+					expblock.functions.createExpBlock(expblock.types.darkGreen, x + offsetX, y + offsetY);
+					amount -= expblock.types.darkGreen.experience;
+				} else if (amount >= expblock.types.green.experience) {
+					expblock.functions.createExpBlock(expblock.types.green, x + offsetX, y + offsetY);
+					amount -= expblock.types.green.experience;
+				} else {
+					expblock.functions.createExpBlock(expblock.types.lightGreen, x + offsetX, y + offsetY);
+					amount -= expblock.types.lightGreen.experience;
+				}
+			}
+		},
+
+		createExpBlock : function(type, x, y) {
+			let expBlock = new Sprite(x, y);
+			expBlock.shape = "circle";
+			expBlock.collider = "static";
+			expBlock.color = type.color;
+			expBlock.scale = type.scale;
+			expBlock.experience = type.experience;
+			expBlock.overlaps = false;
+			expBlock.collider = "none";
+			expblock.utility.expblock.push(expBlock);
+		}
+	},
+
+	types: {
+		lightGreen: { color: "lightgreen", scale: 0.4, experience: 10 },
+		green: { color: "green", scale: 0.6, experience: 50 },
+		darkGreen: { color: "cyan", scale: 0.8, experience: 100 }
+	}
+}
+
+
+
+
 let ennemi = {
 	stats : {
 		bateau: {
@@ -378,7 +446,7 @@ let ennemi = {
 				feu: 1.00,
 				degats: 1.00
 			},
-			xpDrop: 10,
+			xpDrop: 390,
 		},
 		arme: {
 			degats: {
@@ -397,66 +465,116 @@ let ennemi = {
 		}
 	},
 
-	utility :{
-		
+	utility : {
+		mobcount: 0,
 	},
 
 	functions: {
-		runAll : function(){
-			ennemi.functions.mouvement();
-		},
 
 		spawn : function(){
-			let mob = {} 
-			mob.stats = ennemi.stats;
+			let mob = new Sprite(random(0, windowWidth), random(0, windowHeight));
+			mob.stats = JSON.parse(JSON.stringify(ennemi.stats));
 			mob.sensRotation = floor(random(0, 2));
 			mob.distanceCible = floor(random(200, 400));
+			mob.touche = false;
+			mob.id = ennemi.utility.mobcount++;
 
 			mob.functions = {
 
 				mouvement : function(){
-					let distance = dist(mob.sprite.x, mob.sprite.y, player.sprite.x, player.sprite.y);
+					let distance = dist(mob.x, mob.y, player.sprite.x, player.sprite.y);
 					if (distance > mob.distanceCible){
-						mob.sprite.rotateTowards(player.sprite, 0.1, 0);
-						mob.sprite.direction = mob.sprite.rotation;
+						mob.rotateTowards(player.sprite, 0.1, 0);
+						mob.direction = mob.rotation;
 					}
 					else {
 						if (mob.sensRotation == 0){
 							if (distance < mob.distanceCible*0.75){
-								mob.sprite.rotateTowards(player.sprite, 0.1, 120);
+								mob.rotateTowards(player.sprite, 0.1, 120);
 							}
 							else {
-								mob.sprite.rotateTowards(player.sprite, 0.1, 90);
+								mob.rotateTowards(player.sprite, 0.1, 90);
 							}
-							mob.sprite.direction = mob.sprite.rotation;
+							mob.direction = mob.rotation;
 						}
 						else {
 							if (distance < mob.distanceCible*0.75){
-								mob.sprite.rotateTowards(player.sprite, 0.1, -120);
+								mob.rotateTowards(player.sprite, 0.1, -120);
 							}
 							else {
-								mob.sprite.rotateTowards(player.sprite, 0.1, -90);
+								mob.rotateTowards(player.sprite, 0.1, -90);
 							}
-							mob.sprite.direction = mob.sprite.rotation;
+							mob.direction = mob.rotation;
 						}
 					}
-					mob.sprite.speed = mob.stats.bateau.vitesse;
+					mob.speed = mob.stats.bateau.vitesse;
 				},
 				
 				update : function(){
-					mob.functions.mouvement();
+					mob.functions.mouvement();		
+
+					if (frameCount % 15 == 0){
+						spawnRoutine.utility.functions.createVague(mob.x, mob.y);
+					}
+
+					if (mob.stats.bateau.vie <= 0){
+						mob.functions.die();
+					}
+
+					mob.functions.checkHit();
+
+					console.log("test: ", ennemi.stats.bateau.vie);
+
+				},
+
+				checkHit : function(){
+					let check = false;
+					for (let boulet of projectile.utility.projectiles){
+						if (mob.overlaps(boulet)){
+							check = true;
+							if (!mob.touche){
+								if (mob.stats.bateau.vie >= boulet.vie){
+									mob.stats.bateau.vie -= boulet.vie;
+									boulet.vie = 0;
+								}
+								else {
+									let vieavant = mob.stats.bateau.vie;
+									mob.stats.bateau.vie -= degats;
+									boulet.vie -= vieavant;
+								}
+								if (boulet.vie <= 0){
+									boulet.remove();
+									projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
+								}
+							}
+						}
+					}
+					if (check){
+						mob.touche = true;
+					}
+					else {
+						mob.touche = false;
+					}
+				},
+
+
+				die : function() {
+					expblock.functions.dropEXP(mob.stats.bateau.xpDrop, mob.x, mob.y);
+
+					spawnRoutine.utility.functions.killMob(mob.id);
 				}
 
 			}
 
-			mob.sprite = new Sprite(random(0, windowWidth), random(0, windowHeight));
-			mob.sprite.width = 64;
-			mob.sprite.height = 32;
-			mob.sprite.scale = 1.2;
-			mob.sprite.collider = 'none';
-			mob.sprite.drag = 10;
-			mob.sprite.rotationDrag = 1;
-			mob.sprite.mass = 1;
+
+			mob.width = 64;
+			mob.height = 32;
+			mob.scale = 1.2;
+			mob.collider = 'none';
+			mob.drag = 10;
+			mob.rotationDrag = 1;
+			mob.mass = 1;
+			mob.image = loadImage('assets/ennemi.png');
 
 			spawnRoutine.utility.ennemis.push(mob);
 		},
@@ -470,12 +588,42 @@ let spawnRoutine = {
 		ennemis: [],
 		intervalle: 2,
 		ennemisMax: 5,
+		vagues : [],
+		functions: {
+			createVague: function(X, Y){
+				let vague = new Sprite(X, Y);
+				vague.width = 64;
+				vague.height = 64;
+				vague.image = loadImage('assets/ripple.png');
+				vague.collider = 'none';
+				vague.layer = -1;
+				vague.opacity = 1;
+				vague.scale = 0.8;
+				spawnRoutine.utility.vagues.push(vague);
+			},
+
+			killMob : function(id){
+				let indexToRemove = -1;
+				for (let i = 0; i < spawnRoutine.utility.ennemis.length; i++){
+					if (spawnRoutine.utility.ennemis[i].id == id){
+						spawnRoutine.utility.ennemis[i].remove();
+						indexToRemove = i;
+						break;
+					}
+				}
+				if (indexToRemove !== -1) {
+					spawnRoutine.utility.ennemis.splice(indexToRemove, 1);
+				}
+			}
+
+		}
 	},
 
 	functions: {
 		runAll : function(){
 			spawnRoutine.functions.spawn();
 			spawnRoutine.functions.update();
+			spawnRoutine.functions.vagues();
 		},
 
 		spawn : function(){
@@ -490,7 +638,20 @@ let spawnRoutine = {
 			for (let mob of spawnRoutine.utility.ennemis){
 				mob.functions.update();
 			}
-		}
+		},
+
+		vagues: function(){
+			for (let i=0; i<spawnRoutine.utility.vagues.length; i++){
+				let vague = spawnRoutine.utility.vagues[i];
+				vague.opacity -= 0.02;
+				vague.scale += 0.02;
+				if (vague.opacity <= 0){
+					spawnRoutine.utility.vagues.splice(i, 1);
+					vague.remove();
+				}
+			}
+		},
+
 	}
 }
 
@@ -1256,7 +1417,7 @@ function draw() {
 	reload.x = player.sprite.x - (windowWidth / 2) + 180;
 	reload.y = player.sprite.y - (windowHeight / 2) + 100;
 	
-	player.stats.bateau.experience=player.stats.bateau.experience+1;
+	
 
 	niveautext.text = "Niveau : " + player.stats.bateau.niveau;
 	exptext.text = "Exp : " + player.stats.bateau.experience;
@@ -1276,6 +1437,7 @@ function draw() {
 	reticule.functions.runAll();
 	projectile.functions.runAll();
 	spawnRoutine.functions.runAll();
+	expblock.functions.runAll();
 
 	backup.functions.run();
 
