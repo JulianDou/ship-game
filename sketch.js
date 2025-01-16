@@ -18,11 +18,11 @@ let player = {
 		},
 		arme: {
 			degats: {
-				base: 10.00,
+				base: 40.00,
 				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
-				dureeFeu: 5, // En millisecondes
+				dureeFeu: 5, // En secondes
 			},
-			recharge: 0, // En millisecondes
+			recharge: 2, // En secondes
 			vitesse: 5, 
 			dispersion: 10, // En degrés
 			portee: 500, // En pixels
@@ -152,18 +152,25 @@ let player = {
 		},
 		expstat: function(){
 			if (player.stats.bateau.experience >= player.stats.bateau.expMax){
-				player.stats.bateau.experience = player.stats.bateau.experience -player.stats.bateau.expMax;
+				player.stats.bateau.experience = 0;
 				player.stats.bateau.niveau += 1;
-				player.stats.bateau.expMax = player.stats.bateau.expMax + 50;
+				player.stats.bateau.expMax = player.stats.bateau.expMax +50;
 			}
 		},
 
-		
+		initialize: function(){
+			player.sprite = new Sprite(windowWidth/2, windowHeight/2);
+			player.sprite.width = 64;
+			player.sprite.height = 32;
+			player.sprite.scale = 1.2;
+			player.sprite.collider = 'dynamic';
+			player.sprite.image = loadImage('assets/player.png');
+			player.sprite.image.direction = 90;
+			player.sprite.mass = 10;
+		}
 	}
 
 };
-
-
 
 let viseur = {
 	utility : {
@@ -207,6 +214,15 @@ let viseur = {
 			} else {
 				arme.utility.visee = "right"; // Right zone
 			}
+		},
+
+		initialize: function(){
+			viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
+			viseur.sprite.width = 64;
+			viseur.sprite.height = 8;
+			viseur.sprite.offset.x = 32;
+			viseur.sprite.collider = 'none';
+			viseur.sprite.opacity = 0;
 		}
 	}
 };
@@ -285,6 +301,14 @@ let arme = {
 				}
 			}
 		},
+
+		initialize: function(){
+			arme.sprite = new Sprite(player.sprite.x, player.sprite.y);
+			arme.sprite.width = 32;
+			arme.sprite.height = 8;
+			arme.sprite.offset.x = 16;
+			arme.sprite.collider = 'none';
+		}
 	}
 }
 
@@ -298,57 +322,25 @@ let projectile = {
 			projectile.functions.update();
 		},
 
-		update : function(){
-
-			for (let boulet of projectile.utility.projectiles) {
-				for (let mob of speudomob.utility.speudomob) {
-					
-					if (boulet.overlaps(mob)) {
-						mob.vie -= player.stats.arme.degats.base;
-
-							if(player.stats.arme.degats.feu > 0){
-								let feuInterval = setInterval(() => {
-									mob.vie -= player.stats.arme.degats.feu;
-									if (mob.vie <= 0) {
-										clearInterval(feuInterval);
-										mob.remove();
-										console.log(mob.vie);
-									}
-								}, 1000);
-
-								setTimeout(() => {
-									clearInterval(feuInterval);
-								}, 10000);
-								
-							}
-						
-							
-						if (player.stats.arme.penetration<= 1){
-						boulet.remove();
-					}
-						if (mob.vie <= 0) {
-							clearInterval(feuInterval);
-							mob.remove();
-							
-						}
-					}
+		checkDistance : function(boulet){
+			if (boulet.source = "player"){
+				if (dist(boulet.origine.x, boulet.origine.y, boulet.x, boulet.y) >= boulet.porteeMax){
+					player.utility.functions.createVague(boulet.x, boulet.y);
+					boulet.remove();
+					projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
 				}
 			}
-			
+		},
 
+		update : function(){
 			for (let boulet of projectile.utility.projectiles){
-				if (boulet.source = "player"){
-					if (dist(boulet.origine.x, boulet.origine.y, boulet.x, boulet.y) >= boulet.porteeMax){
-						player.utility.functions.createVague(boulet.x, boulet.y);
-						boulet.remove();
-						projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
-					}
-				}
-
+				projectile.functions.checkDistance(boulet);
 			}
 		}
+
 	}
 }
+
 
 let reticule = {
 	functions: {
@@ -371,6 +363,12 @@ let reticule = {
 				reticule.sprite.image = loadImage('assets/retidroite.png');
 			}
 		},
+
+		initialize: function(){
+			reticule.sprite = new Sprite(mouseX, mouseY);
+			reticule.sprite.collider = 'none';
+			reticule.sprite.image = loadImage('assets/crosshair.png');
+		}
 	}
 }
 
@@ -394,27 +392,21 @@ let expblock = {
 					expblock.utility.expblock.splice(i, 1);
 				}
 			}
+		},
 
-			for (let mob of speudomob.utility.speudomob) {
-				if (mob.vie <= 0) {
-					let totalExperience = mob.experience;
-					console.log(totalExperience);
-					while (totalExperience > 0) {
-						let offsetX = random(-50, 50);
-						let offsetY = random(-50, 50);
-						if (totalExperience >= expblock.types.darkGreen.experience) {
-							expblock.functions.createExpBlock(expblock.types.darkGreen, mob.x + offsetX, mob.y + offsetY);
-							totalExperience -= expblock.types.darkGreen.experience;
-						} else if (totalExperience >= expblock.types.green.experience) {
-							expblock.functions.createExpBlock(expblock.types.green, mob.x + offsetX, mob.y + offsetY);
-							totalExperience -= expblock.types.green.experience;
-						} else {
-							expblock.functions.createExpBlock(expblock.types.lightGreen, mob.x + offsetX, mob.y + offsetY);
-							totalExperience -= expblock.types.lightGreen.experience;
-						}
-					}
-					mob.remove();
-					speudomob.utility.speudomob.splice(speudomob.utility.speudomob.indexOf(mob), 1);
+		dropEXP : function(amount, x, y){
+			while (amount > 0) {
+				let offsetX = random(-50, 50);
+				let offsetY = random(-50, 50);
+				if (amount >= expblock.types.darkGreen.experience) {
+					expblock.functions.createExpBlock(expblock.types.darkGreen, x + offsetX, y + offsetY);
+					amount -= expblock.types.darkGreen.experience;
+				} else if (amount >= expblock.types.green.experience) {
+					expblock.functions.createExpBlock(expblock.types.green, x + offsetX, y + offsetY);
+					amount -= expblock.types.green.experience;
+				} else {
+					expblock.functions.createExpBlock(expblock.types.lightGreen, x + offsetX, y + offsetY);
+					amount -= expblock.types.lightGreen.experience;
 				}
 			}
 		},
@@ -435,46 +427,223 @@ let expblock = {
 	types: {
 		lightGreen: { color: "lightgreen", scale: 0.4, experience: 10 },
 		green: { color: "green", scale: 0.6, experience: 50 },
-		darkGreen: { color: "darkgreen", scale: 0.8, experience: 100 }
+		darkGreen: { color: "cyan", scale: 0.8, experience: 100 }
 	}
 }
-	
-let speudomob = {
+
+
+
+
+// Call the spawnIles function to spawn iles
+
+
+
+let ennemi = {
+	stats : {
+		bateau: {
+			vie: 40,
+			vitesse: 1.5,
+			maniabilite: 1,
+			collision: 1.00,
+			taille: 1.00, // Taille doit être la valeur qu'on donnera à scale
+			resistance: { // Les résistances sont des pourcentages (1 = 100% de dégâts subis)
+				feu: 1.00,
+				degats: 1.00
+			},
+			xpDrop: 390,
+		},
+		arme: {
+			degats: {
+				base: 10.00,
+				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
+				dureeFeu: 5000, // En millisecondes
+			},
+			recharge: 4000, // En millisecondes
+			vitesse: 5, 
+			dispersion: 10, // En degrés
+			portee: 500, // En pixels
+			projectiles: 1,
+			taille: 1, // Taille doit être la valeur qu'on donnera à scale
+			penetration: 0, // Nombre de cibles que peut traverser un projectile
+			ricochets: 0, // Nombre de fois qu'un projectile peut rebondir
+		}
+	},
 
 	utility : {
-		speudomob: [],
+		mobcount: 0,
+	},
+
+	functions: {
+
+		spawn : function(){
+			let mob = new Sprite(random(0, windowWidth), random(0, windowHeight));
+			mob.stats = ennemi.stats;
+			mob.sensRotation = floor(random(0, 2));
+			mob.distanceCible = floor(random(200, 400));
+			mob.touche = false;
+			mob.id = ennemi.utility.mobcount++;
+
+			mob.functions = {
+
+				mouvement : function(){
+					let distance = dist(mob.x, mob.y, player.sprite.x, player.sprite.y);
+					if (distance > mob.distanceCible){
+						mob.rotateTowards(player.sprite, 0.1, 0);
+						mob.direction = mob.rotation;
+					}
+					else {
+						if (mob.sensRotation == 0){
+							if (distance < mob.distanceCible*0.75){
+								mob.rotateTowards(player.sprite, 0.1, 120);
+							}
+							else {
+								mob.rotateTowards(player.sprite, 0.1, 90);
+							}
+							mob.direction = mob.rotation;
+						}
+						else {
+							if (distance < mob.distanceCible*0.75){
+								mob.rotateTowards(player.sprite, 0.1, -120);
+							}
+							else {
+								mob.rotateTowards(player.sprite, 0.1, -90);
+							}
+							mob.direction = mob.rotation;
+						}
+					}
+					mob.speed = mob.stats.bateau.vitesse;
+				},
+				
+				update : function(){
+					mob.functions.mouvement();		
+
+					if (frameCount % 15 == 0){
+						spawnRoutine.utility.functions.createVague(mob.x, mob.y);
+					}
+
+					if (mob.stats.bateau.vie <= 0){
+						mob.functions.die();
+					}
+
+					mob.functions.checkHit();
+
+				},
+
+				checkHit : function(){
+					let check = false;
+					for (let boulet of projectile.utility.projectiles){
+						if (mob.overlaps(boulet)){
+							check = true;
+							if (!mob.touche){
+								if (mob.stats.bateau.vie >= boulet.vie){
+									mob.stats.bateau.vie -= boulet.vie;
+									boulet.vie = 0;
+								}
+								else {
+									let vieavant = mob.stats.bateau.vie;
+									mob.stats.bateau.vie -= degats;
+									boulet.vie -= vieavant;
+								}
+								if (boulet.vie <= 0){
+									boulet.remove();
+									projectile.utility.projectiles.splice(projectile.utility.projectiles.indexOf(boulet), 1);
+								}
+							}
+						}
+					}
+					if (check){
+						mob.touche = true;
+					}
+					else {
+						mob.touche = false;
+					}
+				},
+
+
+				die : function() {
+					expblock.functions.dropEXP(mob.stats.bateau.xpDrop, mob.x, mob.y);
+
+					spawnRoutine.utility.ennemis.splice(spawnRoutine.utility.ennemis.indexOf(mob), 1);	
+					mob.remove();
+				}
+
+			}
+
+
+			mob.width = 64;
+			mob.height = 32;
+			mob.scale = 1.2;
+			mob.collider = 'none';
+			mob.drag = 10;
+			mob.rotationDrag = 1;
+			mob.mass = 1;
+			mob.image = loadImage('assets/ennemi.png');
+
+			spawnRoutine.utility.ennemis.push(mob);
+		},
+
+
+	}
+}
+
+let spawnRoutine = {
+	utility : {
+		ennemis: [],
+		intervalle: 2,
+		ennemisMax: 5,
+		vagues : [],
+		functions: {
+			createVague: function(X, Y){
+				let vague = new Sprite(X, Y);
+				vague.width = 64;
+				vague.height = 64;
+				vague.image = loadImage('assets/ripple.png');
+				vague.collider = 'none';
+				vague.layer = -1;
+				vague.opacity = 1;
+				vague.scale = 0.8;
+				spawnRoutine.utility.vagues.push(vague);
+			}
+
+		}
 	},
 
 	functions: {
 		runAll : function(){
-			speudomob.functions.update();
-			
-			
+			spawnRoutine.functions.spawn();
+			spawnRoutine.functions.update();
+			spawnRoutine.functions.vagues();
+			console.log(spawnRoutine.utility.ennemis);
+		},
+
+		spawn : function(){
+			if (frameCount % (spawnRoutine.utility.intervalle * 60) == 0){
+				if (spawnRoutine.utility.ennemis.length < spawnRoutine.utility.ennemisMax){
+					ennemi.functions.spawn();
+				}
+			}
 		},
 
 		update : function(){
-		
-			
-
+			for (let mob of spawnRoutine.utility.ennemis){
+				mob.functions.update();
+			}
 		},
 
-		createSpeudoMob: function(x, y) {
-			let speudoMob = new Sprite(x, y);
-			speudoMob.width = 50;
-			speudoMob.height = 50;
-			speudoMob.color = "red";
-			speudoMob.collider = "dynamic";
-			speudoMob.vie = 300;
-			speudoMob.experience = 470;
-			speudomob.utility.speudomob.push(speudoMob);
-		}
-		
-	},
+		vagues: function(){
+			for (let i=0; i<spawnRoutine.utility.vagues.length; i++){
+				let vague = spawnRoutine.utility.vagues[i];
+				vague.opacity -= 0.02;
+				vague.scale += 0.02;
+				if (vague.opacity <= 0){
+					spawnRoutine.utility.vagues.splice(i, 1);
+					vague.remove();
+				}
+			}
+		},
 
-
-	
+	}
 }
-
 
 function setup() {
 	frameRate(60);
@@ -489,14 +658,10 @@ function setup() {
 
 	//start..........................
 	
-
-	player.sprite = new Sprite(windowWidth/2, windowHeight/2);
-	player.sprite.width = 64;
-	player.sprite.height = 32;
-	player.sprite.scale = 1.2;
-	player.sprite.collider = 'dynamic';
-	player.sprite.image = loadImage('assets/player.png');
-	player.sprite.image.direction = 90;
+	player.functions.initialize();
+	viseur.functions.initialize();
+	arme.functions.initialize();
+	reticule.functions.initialize();
 
 	time = new Sprite(player.sprite.x-(windowWidth/2)+180, player.sprite.y-(windowHeight/2)+50, 0, 0);
 	time.textSize = 40;
@@ -526,33 +691,10 @@ function setup() {
 	exptext.textColor = "white";
 	exptext.layer=1000000;
 
-	
-	
-	
-	viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
-	viseur.sprite.width = 64;
-	viseur.sprite.height = 8;
-	viseur.sprite.offset.x = 32;
-	viseur.sprite.collider = 'none';
-	viseur.sprite.opacity = 0;
-
-	arme.sprite = new Sprite(player.sprite.x, player.sprite.y);
-	arme.sprite.width = 32;
-	arme.sprite.height = 8;
-	arme.sprite.offset.x = 16;
-	arme.sprite.collider = 'none';
-
 	let reference = new Sprite(windowWidth/2+100, windowHeight/2);
 	reference.collider = 'static';
 
-	reticule.sprite = new Sprite(mouseX, mouseY);
-	reticule.sprite.collider = 'none';
-	reticule.sprite.image = loadImage('assets/crosshair.png');
-
     backup.functions.initialize();
-
-	speudomob.functions.createSpeudoMob(windowWidth/2+100, windowHeight/2-200);
-
 	
 }
 
@@ -934,8 +1076,303 @@ let backup = {
 	this.buttonLessRicochets.color = "white";
 	this.buttonLessRicochets.collider = "static";
 	this.buttonLessRicochets.layer = 100000000;
-    }
+    },
 
+	run(){
+		let xOffSet = player.sprite.x + (windowWidth/2) -200;
+
+		// Update button positions
+	  
+		backup.functions.textspeed.x = xOffSet;
+		backup.functions.textspeed.y = player.sprite.y - (windowHeight / 2) + 80;
+		
+		backup.functions.textVie.x = xOffSet;
+		backup.functions.textVie.y = player.sprite.y - (windowHeight / 2) + 180;
+		
+		backup.functions.textManiabilite.x = xOffSet;
+		backup.functions.textManiabilite.y = player.sprite.y - (windowHeight / 2) + 280;
+		
+		backup.functions.textTaille.x = xOffSet;
+		backup.functions.textTaille.y = player.sprite.y - (windowHeight / 2) + 380;
+		
+		backup.functions.textResistance.x = xOffSet;
+		backup.functions.textResistance.y = player.sprite.y - (windowHeight / 2) + 480;
+		
+		backup.functions.textResistanceFeu.x = xOffSet;
+		backup.functions.textResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 580;
+			
+		backup.functions.buttonmore.x = xOffSet + 100;
+		backup.functions.buttonmore.y = player.sprite.y - (windowHeight / 2) + 130;
+		
+		backup.functions.buttonless.x = xOffSet + 50;
+		backup.functions.buttonless.y = player.sprite.y - (windowHeight / 2) + 130;
+		
+		backup.functions.buttonMoreVie.x = xOffSet + 100;
+		backup.functions.buttonMoreVie.y = player.sprite.y - (windowHeight / 2) + 230;
+		
+		backup.functions.buttonLessVie.x = xOffSet + 50;
+		backup.functions.buttonLessVie.y = player.sprite.y - (windowHeight / 2) + 230;
+		
+		backup.functions.buttonMoreManiabilite.x = xOffSet + 100;
+		backup.functions.buttonMoreManiabilite.y = player.sprite.y - (windowHeight / 2) + 330;
+		
+		backup.functions.buttonLessManiabilite.x = xOffSet + 50;
+		backup.functions.buttonLessManiabilite.y = player.sprite.y - (windowHeight / 2) + 330;
+		
+		backup.functions.buttonMoreTaille.x = xOffSet + 100;
+		backup.functions.buttonMoreTaille.y = player.sprite.y - (windowHeight / 2) + 430;
+		
+		backup.functions.buttonLessTaille.x = xOffSet + 50;
+		backup.functions.buttonLessTaille.y = player.sprite.y - (windowHeight / 2) + 430;
+		
+		backup.functions.buttonMoreResistance.x = xOffSet + 100;
+		backup.functions.buttonMoreResistance.y = player.sprite.y - (windowHeight / 2) + 530;
+		
+		backup.functions.buttonLessResistance.x = xOffSet + 50;
+		backup.functions.buttonLessResistance.y = player.sprite.y - (windowHeight / 2) + 530;
+		
+		backup.functions.buttonMoreResistanceFeu.x = xOffSet + 100;
+		backup.functions.buttonMoreResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 630;
+		
+		backup.functions.buttonLessResistanceFeu.x = xOffSet + 50;
+		backup.functions.buttonLessResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 630;
+		
+		backup.functions.textDegatsBase.x = xOffSet + 50;
+		backup.functions.textDegatsBase.y = player.sprite.y - (windowHeight / 2) + 700;
+		
+		backup.functions.buttonMoreDegatsBase.x = xOffSet + 100;
+		backup.functions.buttonMoreDegatsBase.y = player.sprite.y - (windowHeight / 2) + 750;
+		
+		backup.functions.buttonLessDegatsBase.x = xOffSet + 50;
+		backup.functions.buttonLessDegatsBase.y = player.sprite.y - (windowHeight / 2) + 750;
+		
+		backup.functions.textDegatsFeu.x = xOffSet + 50;
+		backup.functions.textDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 800;
+		
+		backup.functions.buttonMoreDegatsFeu.x = xOffSet + 100;
+		backup.functions.buttonMoreDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 850;
+		
+		backup.functions.buttonLessDegatsFeu.x = xOffSet + 50;
+		backup.functions.buttonLessDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 850;
+		
+		xOffSet2 = xOffSet - 300;
+		yOffset2 = 80;
+		
+		backup.functions.textRecharge.x = xOffSet2;
+		backup.functions.textRecharge.y = player.sprite.y - (windowHeight / 2) + 80;
+		
+		backup.functions.buttonMoreRecharge.x = xOffSet2 + 100;
+		backup.functions.buttonMoreRecharge.y = player.sprite.y - (windowHeight / 2) + 130;
+		
+		backup.functions.buttonLessRecharge.x = xOffSet2 + 50;
+		backup.functions.buttonLessRecharge.y = player.sprite.y - (windowHeight / 2) + 130;
+		
+		backup.functions.textVitesse.x = xOffSet2;
+		backup.functions.textVitesse.y = player.sprite.y - (windowHeight / 2) + 180;
+		
+		backup.functions.buttonMoreVitesse.x = xOffSet2 + 100;
+		backup.functions.buttonMoreVitesse.y = player.sprite.y - (windowHeight / 2) + 230;
+		
+		backup.functions.buttonLessVitesse.x = xOffSet2 + 50;
+		backup.functions.buttonLessVitesse.y = player.sprite.y - (windowHeight / 2) + 230;
+		
+		backup.functions.textDispersion.x = xOffSet2;
+		backup.functions.textDispersion.y = player.sprite.y - (windowHeight / 2) + 280;
+		
+		backup.functions.buttonMoreDispersion.x = xOffSet2 + 100;
+		backup.functions.buttonMoreDispersion.y = player.sprite.y - (windowHeight / 2) + 330;
+		
+		backup.functions.buttonLessDispersion.x = xOffSet2 + 50;
+		backup.functions.buttonLessDispersion.y = player.sprite.y - (windowHeight / 2) + 330;
+		
+		backup.functions.textPortee.x = xOffSet2;
+		backup.functions.textPortee.y = player.sprite.y - (windowHeight / 2) + 380;
+		
+		backup.functions.buttonMorePortee.x = xOffSet2 + 100;
+		backup.functions.buttonMorePortee.y = player.sprite.y - (windowHeight / 2) + 430;
+		
+		backup.functions.buttonLessPortee.x = xOffSet2 + 50;
+		backup.functions.buttonLessPortee.y = player.sprite.y - (windowHeight / 2) + 430;
+		
+		backup.functions.textProjectiles.x = xOffSet2;
+		backup.functions.textProjectiles.y = player.sprite.y - (windowHeight / 2) + 480;
+		
+		backup.functions.buttonMoreProjectiles.x = xOffSet2 + 100;
+		backup.functions.buttonMoreProjectiles.y = player.sprite.y - (windowHeight / 2) + 530;
+		
+		backup.functions.buttonLessProjectiles.x = xOffSet2 + 50;
+		backup.functions.buttonLessProjectiles.y = player.sprite.y - (windowHeight / 2) + 530;
+		
+		backup.functions.textTailleArme.x = xOffSet2;
+		backup.functions.textTailleArme.y = player.sprite.y - (windowHeight / 2) + 580;
+		
+		backup.functions.buttonMoreTailleArme.x = xOffSet2 + 100;
+		backup.functions.buttonMoreTailleArme.y = player.sprite.y - (windowHeight / 2) + 630;
+		
+		backup.functions.buttonLessTailleArme.x = xOffSet2 + 50;
+		backup.functions.buttonLessTailleArme.y = player.sprite.y - (windowHeight / 2) + 630;
+		
+		backup.functions.textPenetration.x = xOffSet2;
+		backup.functions.textPenetration.y = player.sprite.y - (windowHeight / 2) + 680;
+		
+		backup.functions.buttonMorePenetration.x = xOffSet2 + 100;
+		backup.functions.buttonMorePenetration.y = player.sprite.y - (windowHeight / 2) + 730;
+		
+		backup.functions.buttonLessPenetration.x = xOffSet2 + 50;
+		backup.functions.buttonLessPenetration.y = player.sprite.y - (windowHeight / 2) + 730;
+		
+		backup.functions.textRicochets.x = xOffSet2;
+		backup.functions.textRicochets.y = player.sprite.y - (windowHeight / 2) + 780;
+		
+		backup.functions.buttonMoreRicochets.x = xOffSet2 + 100;
+		backup.functions.buttonMoreRicochets.y = player.sprite.y - (windowHeight / 2) + 830;
+		
+		backup.functions.buttonLessRicochets.x = xOffSet2 + 50;
+		backup.functions.buttonLessRicochets.y = player.sprite.y - (windowHeight / 2) + 830;
+		
+		
+		  
+			if (backup.functions.buttonmore.mouse.pressed()) {
+				console.log("buttonmore pressed");
+				player.stats.bateau.vitesse += 0.1;
+				player.stats.bateau.vitesse = parseFloat(player.stats.bateau.vitesse.toFixed(2));
+				backup.functions.textspeed.text = "Speed : " + player.stats.bateau.vitesse;
+			} else if (backup.functions.buttonless.mouse.pressed()) {
+				player.stats.bateau.vitesse -= 0.1;
+				player.stats.bateau.vitesse = parseFloat(player.stats.bateau.vitesse.toFixed(2));
+				backup.functions.textspeed.text = "Speed : " + player.stats.bateau.vitesse;
+			}
+			
+			if (backup.functions.buttonMoreVie.mouse.pressed()) {
+				player.stats.bateau.vie += 10;
+				backup.functions.textVie.text = "Vie : " + player.stats.bateau.vie;
+			} else if (backup.functions.buttonLessVie.mouse.pressed()) {
+				player.stats.bateau.vie -= 10;
+				backup.functions.textVie.text = "Vie : " + player.stats.bateau.vie;
+			}
+			
+			if (backup.functions.buttonMoreManiabilite.mouse.pressed()) {
+				player.stats.bateau.maniabilite += 0.1;
+				player.stats.bateau.maniabilite = parseFloat(player.stats.bateau.maniabilite.toFixed(2));
+				backup.functions.textManiabilite.text = "Maniabilité : " + player.stats.bateau.maniabilite;
+			} else if (backup.functions.buttonLessManiabilite.mouse.pressed()) {
+				player.stats.bateau.maniabilite -= 0.1;
+				player.stats.bateau.maniabilite = parseFloat(player.stats.bateau.maniabilite.toFixed(2));
+				backup.functions.textManiabilite.text = "Maniabilité : " + player.stats.bateau.maniabilite;
+			}
+			
+			if (backup.functions.buttonMoreTaille.mouse.pressed()) {
+				player.stats.bateau.taille += 0.1;
+				player.stats.bateau.taille = parseFloat(player.stats.bateau.taille.toFixed(2));
+				backup.functions.textTaille.text = "Taille : " + player.stats.bateau.taille;
+			} else if (backup.functions.buttonLessTaille.mouse.pressed()) {
+				player.stats.bateau.taille -= 0.1;
+				player.stats.bateau.taille = parseFloat(player.stats.bateau.taille.toFixed(2));
+				backup.functions.textTaille.text = "Taille : " + player.stats.bateau.taille;
+			}
+			
+			if (backup.functions.buttonMoreResistance.mouse.pressed()) {
+				player.stats.bateau.resistance.degats += 0.1;
+				player.stats.bateau.resistance.degats = parseFloat(player.stats.bateau.resistance.degats.toFixed(2));
+				backup.functions.textResistance.text = "Résistance : " + player.stats.bateau.resistance.degats;
+			} else if (backup.functions.buttonLessResistance.mouse.pressed()) {
+				player.stats.bateau.resistance.degats -= 0.1;
+				player.stats.bateau.resistance.degats = parseFloat(player.stats.bateau.resistance.degats.toFixed(2));
+				backup.functions.textResistance.text = "Résistance : " + player.stats.bateau.resistance.degats;
+			}
+			
+			if (backup.functions.buttonMoreResistanceFeu.mouse.pressed()) {
+				player.stats.bateau.resistance.feu += 0.1;
+				player.stats.bateau.resistance.feu = parseFloat(player.stats.bateau.resistance.feu.toFixed(2));
+				backup.functions.textResistanceFeu.text = "Résistance Feu : " + player.stats.bateau.resistance.feu;
+			} else if (backup.functions.buttonLessResistanceFeu.mouse.pressed()) {
+				player.stats.bateau.resistance.feu -= 0.1;
+				player.stats.bateau.resistance.feu = parseFloat(player.stats.bateau.resistance.feu.toFixed(2));
+				backup.functions.textResistanceFeu.text = "Résistance Feu : " + player.stats.bateau.resistance.feu;
+			}
+		
+			if (backup.functions.buttonMoreDegatsBase.mouse.pressed()) {
+				player.stats.arme.degats.base += 1;
+				backup.functions.textDegatsBase.text = "Dégâts Base : " + player.stats.arme.degats.base;
+			} else if (backup.functions.buttonLessDegatsBase.mouse.pressed()) {
+				player.stats.arme.degats.base -= 1;
+				backup.functions.textDegatsBase.text = "Dégâts Base : " + player.stats.arme.degats.base;
+			}
+		
+			if (backup.functions.buttonMoreDegatsFeu.mouse.pressed()) {
+				player.stats.arme.degats.feu += 1;
+				backup.functions.textDegatsFeu.text = "Dégâts Feu : " + player.stats.arme.degats.feu;
+			} else if (backup.functions.buttonLessDegatsFeu.mouse.pressed()) {
+				player.stats.arme.degats.feu -= 1;
+				backup.functions.textDegatsFeu.text = "Dégâts Feu : " + player.stats.arme.degats.feu;
+			}
+		
+			if (backup.functions.buttonMoreRecharge.mouse.pressed()) {
+				player.stats.arme.recharge += 1;
+				backup.functions.textRecharge.text = "Recharge : " + player.stats.arme.recharge;
+			} else if (backup.functions.buttonLessRecharge.mouse.pressed()) {
+				player.stats.arme.recharge -= 1;
+				backup.functions.textRecharge.text = "Recharge : " + player.stats.arme.recharge;
+			}
+		
+			if (backup.functions.buttonMoreVitesse.mouse.pressed()) {
+				player.stats.arme.vitesse += 1;
+				backup.functions.textVitesse.text = "Vitesse : " + player.stats.arme.vitesse;
+			} else if (backup.functions.buttonLessVitesse.mouse.pressed()) {
+				player.stats.arme.vitesse -= 1;
+				backup.functions.textVitesse.text = "Vitesse : " + player.stats.arme.vitesse;
+			}
+		
+			if (backup.functions.buttonMoreDispersion.mouse.pressed()) {
+				player.stats.arme.dispersion += 1;
+				backup.functions.textDispersion.text = "Dispersion : " + player.stats.arme.dispersion;
+			} else if (backup.functions.buttonLessDispersion.mouse.pressed()) {
+				player.stats.arme.dispersion -= 1;
+				backup.functions.textDispersion.text = "Dispersion : " + player.stats.arme.dispersion;
+			}
+		
+			if (backup.functions.buttonMorePortee.mouse.pressed()) {
+				player.stats.arme.portee += 10;
+				backup.functions.textPortee.text = "Portée : " + player.stats.arme.portee;
+			} else if (backup.functions.buttonLessPortee.mouse.pressed()) {
+				player.stats.arme.portee -= 10;
+				backup.functions.textPortee.text = "Portée : " + player.stats.arme.portee;
+			}
+		
+			if (backup.functions.buttonMoreProjectiles.mouse.pressed()) {
+				player.stats.arme.projectiles += 1;
+				backup.functions.textProjectiles.text = "Projectiles : " + player.stats.arme.projectiles;
+			} else if (backup.functions.buttonLessProjectiles.mouse.pressed()) {
+				player.stats.arme.projectiles -= 1;
+				backup.functions.textProjectiles.text = "Projectiles : " + player.stats.arme.projectiles;
+			}
+		
+			if (backup.functions.buttonMoreTailleArme.mouse.pressed()) {
+				player.stats.arme.taille += 0.1;
+				player.stats.arme.taille = parseFloat(player.stats.arme.taille.toFixed(2));
+				backup.functions.textTailleArme.text = "Taille Arme : " + player.stats.arme.taille;
+			} else if (backup.functions.buttonLessTailleArme.mouse.pressed()) {
+				player.stats.arme.taille -= 0.1;
+				player.stats.arme.taille = parseFloat(player.stats.arme.taille.toFixed(2));
+				backup.functions.textTailleArme.text = "Taille Arme : " + player.stats.arme.taille;
+			}
+		
+			if (backup.functions.buttonMorePenetration.mouse.pressed()) {
+				player.stats.arme.penetration += 1;
+				backup.functions.textPenetration.text = "Pénétration : " + player.stats.arme.penetration;
+			} else if (backup.functions.buttonLessPenetration.mouse.pressed()) {
+				player.stats.arme.penetration -= 1;
+				backup.functions.textPenetration.text = "Pénétration : " + player.stats.arme.penetration;
+			}
+		
+			if (backup.functions.buttonMoreRicochets.mouse.pressed()) {
+				player.stats.arme.ricochets += 1;
+				backup.functions.textRicochets.text = "Ricochets : " + player.stats.arme.ricochets;
+			} else if (backup.functions.buttonLessRicochets.mouse.pressed()) {
+				player.stats.arme.ricochets -= 1;
+				backup.functions.textRicochets.text = "Ricochets : " + player.stats.arme.ricochets;
+			}	  
+	}
   }
 }
  
@@ -971,7 +1408,7 @@ function draw() {
 	reload.x = player.sprite.x - (windowWidth / 2) + 180;
 	reload.y = player.sprite.y - (windowHeight / 2) + 100;
 	
-
+	
 
 	niveautext.text = "Niveau : " + player.stats.bateau.niveau;
 	exptext.text = "Exp : " + player.stats.bateau.experience;
@@ -980,324 +1417,23 @@ function draw() {
 	niveautext.y=player.sprite.y-(windowHeight/2)+150;
 
 	exptext.x=player.sprite.x-(windowWidth/2)+180;
-	exptext.y=player.sprite.y-(windowHeight/2)+200;
-
-	
-
-		
-		
+	exptext.y=player.sprite.y-(windowHeight/2)+200;		
 		
 	camera.x = player.sprite.x;
 	camera.y = player.sprite.y;
-	expblock.functions.runAll();
+
 	player.functions.runAll();
 	viseur.functions.runAll();
 	arme.functions.runAll();
 	reticule.functions.runAll();
 	projectile.functions.runAll();
-	speudomob.functions.runAll();
-	
+	spawnRoutine.functions.runAll();
+	expblock.functions.runAll();
+
+	backup.functions.run();
 
 	player.sprite.layer = 100;
 	viseur.sprite.layer = 101;
 
-
-	
-
-  
-  let xOffSet = player.sprite.x + (windowWidth/2) -200;
-
-  // Update button positions
-
-  backup.functions.textspeed.x = xOffSet;
-  backup.functions.textspeed.y = player.sprite.y - (windowHeight / 2) + 80;
-  
-  backup.functions.textVie.x = xOffSet;
-  backup.functions.textVie.y = player.sprite.y - (windowHeight / 2) + 180;
-  
-  backup.functions.textManiabilite.x = xOffSet;
-  backup.functions.textManiabilite.y = player.sprite.y - (windowHeight / 2) + 280;
-  
-  backup.functions.textTaille.x = xOffSet;
-  backup.functions.textTaille.y = player.sprite.y - (windowHeight / 2) + 380;
-  
-  backup.functions.textResistance.x = xOffSet;
-  backup.functions.textResistance.y = player.sprite.y - (windowHeight / 2) + 480;
-  
-  backup.functions.textResistanceFeu.x = xOffSet;
-  backup.functions.textResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 580;
-	  
-  backup.functions.buttonmore.x = xOffSet + 100;
-  backup.functions.buttonmore.y = player.sprite.y - (windowHeight / 2) + 130;
-  
-  backup.functions.buttonless.x = xOffSet + 50;
-  backup.functions.buttonless.y = player.sprite.y - (windowHeight / 2) + 130;
-  
-  backup.functions.buttonMoreVie.x = xOffSet + 100;
-  backup.functions.buttonMoreVie.y = player.sprite.y - (windowHeight / 2) + 230;
-  
-  backup.functions.buttonLessVie.x = xOffSet + 50;
-  backup.functions.buttonLessVie.y = player.sprite.y - (windowHeight / 2) + 230;
-  
-  backup.functions.buttonMoreManiabilite.x = xOffSet + 100;
-  backup.functions.buttonMoreManiabilite.y = player.sprite.y - (windowHeight / 2) + 330;
-  
-  backup.functions.buttonLessManiabilite.x = xOffSet + 50;
-  backup.functions.buttonLessManiabilite.y = player.sprite.y - (windowHeight / 2) + 330;
-  
-  backup.functions.buttonMoreTaille.x = xOffSet + 100;
-  backup.functions.buttonMoreTaille.y = player.sprite.y - (windowHeight / 2) + 430;
-  
-  backup.functions.buttonLessTaille.x = xOffSet + 50;
-  backup.functions.buttonLessTaille.y = player.sprite.y - (windowHeight / 2) + 430;
-  
-  backup.functions.buttonMoreResistance.x = xOffSet + 100;
-  backup.functions.buttonMoreResistance.y = player.sprite.y - (windowHeight / 2) + 530;
-  
-  backup.functions.buttonLessResistance.x = xOffSet + 50;
-  backup.functions.buttonLessResistance.y = player.sprite.y - (windowHeight / 2) + 530;
-  
-  backup.functions.buttonMoreResistanceFeu.x = xOffSet + 100;
-  backup.functions.buttonMoreResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 630;
-  
-  backup.functions.buttonLessResistanceFeu.x = xOffSet + 50;
-  backup.functions.buttonLessResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 630;
-  
-  backup.functions.textDegatsBase.x = xOffSet + 50;
-  backup.functions.textDegatsBase.y = player.sprite.y - (windowHeight / 2) + 700;
-  
-  backup.functions.buttonMoreDegatsBase.x = xOffSet + 100;
-  backup.functions.buttonMoreDegatsBase.y = player.sprite.y - (windowHeight / 2) + 750;
-  
-  backup.functions.buttonLessDegatsBase.x = xOffSet + 50;
-  backup.functions.buttonLessDegatsBase.y = player.sprite.y - (windowHeight / 2) + 750;
-  
-  backup.functions.textDegatsFeu.x = xOffSet + 50;
-  backup.functions.textDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 800;
-  
-  backup.functions.buttonMoreDegatsFeu.x = xOffSet + 100;
-  backup.functions.buttonMoreDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 850;
-  
-  backup.functions.buttonLessDegatsFeu.x = xOffSet + 50;
-  backup.functions.buttonLessDegatsFeu.y = player.sprite.y - (windowHeight / 2) + 850;
-  
-  xOffSet2 = xOffSet - 300;
-  yOffset2 = 80;
-  
-  backup.functions.textRecharge.x = xOffSet2;
-  backup.functions.textRecharge.y = player.sprite.y - (windowHeight / 2) + 80;
-  
-  backup.functions.buttonMoreRecharge.x = xOffSet2 + 100;
-  backup.functions.buttonMoreRecharge.y = player.sprite.y - (windowHeight / 2) + 130;
-  
-  backup.functions.buttonLessRecharge.x = xOffSet2 + 50;
-  backup.functions.buttonLessRecharge.y = player.sprite.y - (windowHeight / 2) + 130;
-  
-  backup.functions.textVitesse.x = xOffSet2;
-  backup.functions.textVitesse.y = player.sprite.y - (windowHeight / 2) + 180;
-  
-  backup.functions.buttonMoreVitesse.x = xOffSet2 + 100;
-  backup.functions.buttonMoreVitesse.y = player.sprite.y - (windowHeight / 2) + 230;
-  
-  backup.functions.buttonLessVitesse.x = xOffSet2 + 50;
-  backup.functions.buttonLessVitesse.y = player.sprite.y - (windowHeight / 2) + 230;
-  
-  backup.functions.textDispersion.x = xOffSet2;
-  backup.functions.textDispersion.y = player.sprite.y - (windowHeight / 2) + 280;
-  
-  backup.functions.buttonMoreDispersion.x = xOffSet2 + 100;
-  backup.functions.buttonMoreDispersion.y = player.sprite.y - (windowHeight / 2) + 330;
-  
-  backup.functions.buttonLessDispersion.x = xOffSet2 + 50;
-  backup.functions.buttonLessDispersion.y = player.sprite.y - (windowHeight / 2) + 330;
-  
-  backup.functions.textPortee.x = xOffSet2;
-  backup.functions.textPortee.y = player.sprite.y - (windowHeight / 2) + 380;
-  
-  backup.functions.buttonMorePortee.x = xOffSet2 + 100;
-  backup.functions.buttonMorePortee.y = player.sprite.y - (windowHeight / 2) + 430;
-  
-  backup.functions.buttonLessPortee.x = xOffSet2 + 50;
-  backup.functions.buttonLessPortee.y = player.sprite.y - (windowHeight / 2) + 430;
-  
-  backup.functions.textProjectiles.x = xOffSet2;
-  backup.functions.textProjectiles.y = player.sprite.y - (windowHeight / 2) + 480;
-  
-  backup.functions.buttonMoreProjectiles.x = xOffSet2 + 100;
-  backup.functions.buttonMoreProjectiles.y = player.sprite.y - (windowHeight / 2) + 530;
-  
-  backup.functions.buttonLessProjectiles.x = xOffSet2 + 50;
-  backup.functions.buttonLessProjectiles.y = player.sprite.y - (windowHeight / 2) + 530;
-  
-  backup.functions.textTailleArme.x = xOffSet2;
-  backup.functions.textTailleArme.y = player.sprite.y - (windowHeight / 2) + 580;
-  
-  backup.functions.buttonMoreTailleArme.x = xOffSet2 + 100;
-  backup.functions.buttonMoreTailleArme.y = player.sprite.y - (windowHeight / 2) + 630;
-  
-  backup.functions.buttonLessTailleArme.x = xOffSet2 + 50;
-  backup.functions.buttonLessTailleArme.y = player.sprite.y - (windowHeight / 2) + 630;
-  
-  backup.functions.textPenetration.x = xOffSet2;
-  backup.functions.textPenetration.y = player.sprite.y - (windowHeight / 2) + 680;
-  
-  backup.functions.buttonMorePenetration.x = xOffSet2 + 100;
-  backup.functions.buttonMorePenetration.y = player.sprite.y - (windowHeight / 2) + 730;
-  
-  backup.functions.buttonLessPenetration.x = xOffSet2 + 50;
-  backup.functions.buttonLessPenetration.y = player.sprite.y - (windowHeight / 2) + 730;
-  
-  backup.functions.textRicochets.x = xOffSet2;
-  backup.functions.textRicochets.y = player.sprite.y - (windowHeight / 2) + 780;
-  
-  backup.functions.buttonMoreRicochets.x = xOffSet2 + 100;
-  backup.functions.buttonMoreRicochets.y = player.sprite.y - (windowHeight / 2) + 830;
-  
-  backup.functions.buttonLessRicochets.x = xOffSet2 + 50;
-  backup.functions.buttonLessRicochets.y = player.sprite.y - (windowHeight / 2) + 830;
-  
-  
-	
-	  if (backup.functions.buttonmore.mouse.pressed()) {
-		  console.log("buttonmore pressed");
-		  player.stats.bateau.vitesse += 0.1;
-		  player.stats.bateau.vitesse = parseFloat(player.stats.bateau.vitesse.toFixed(2));
-		  backup.functions.textspeed.text = "Speed : " + player.stats.bateau.vitesse;
-	  } else if (backup.functions.buttonless.mouse.pressed()) {
-		  player.stats.bateau.vitesse -= 0.1;
-		  player.stats.bateau.vitesse = parseFloat(player.stats.bateau.vitesse.toFixed(2));
-		  backup.functions.textspeed.text = "Speed : " + player.stats.bateau.vitesse;
-	  }
-	  
-	  if (backup.functions.buttonMoreVie.mouse.pressed()) {
-		  player.stats.bateau.vie += 10;
-		  backup.functions.textVie.text = "Vie : " + player.stats.bateau.vie;
-	  } else if (backup.functions.buttonLessVie.mouse.pressed()) {
-		  player.stats.bateau.vie -= 10;
-		  backup.functions.textVie.text = "Vie : " + player.stats.bateau.vie;
-	  }
-	  
-	  if (backup.functions.buttonMoreManiabilite.mouse.pressed()) {
-		  player.stats.bateau.maniabilite += 0.1;
-		  player.stats.bateau.maniabilite = parseFloat(player.stats.bateau.maniabilite.toFixed(2));
-		  backup.functions.textManiabilite.text = "Maniabilité : " + player.stats.bateau.maniabilite;
-	  } else if (backup.functions.buttonLessManiabilite.mouse.pressed()) {
-		  player.stats.bateau.maniabilite -= 0.1;
-		  player.stats.bateau.maniabilite = parseFloat(player.stats.bateau.maniabilite.toFixed(2));
-		  backup.functions.textManiabilite.text = "Maniabilité : " + player.stats.bateau.maniabilite;
-	  }
-	  
-	  if (backup.functions.buttonMoreTaille.mouse.pressed()) {
-		  player.stats.bateau.taille += 0.1;
-		  player.stats.bateau.taille = parseFloat(player.stats.bateau.taille.toFixed(2));
-		  backup.functions.textTaille.text = "Taille : " + player.stats.bateau.taille;
-	  } else if (backup.functions.buttonLessTaille.mouse.pressed()) {
-		  player.stats.bateau.taille -= 0.1;
-		  player.stats.bateau.taille = parseFloat(player.stats.bateau.taille.toFixed(2));
-		  backup.functions.textTaille.text = "Taille : " + player.stats.bateau.taille;
-	  }
-	  
-	  if (backup.functions.buttonMoreResistance.mouse.pressed()) {
-		  player.stats.bateau.resistance.degats += 0.1;
-		  player.stats.bateau.resistance.degats = parseFloat(player.stats.bateau.resistance.degats.toFixed(2));
-		  backup.functions.textResistance.text = "Résistance : " + player.stats.bateau.resistance.degats;
-	  } else if (backup.functions.buttonLessResistance.mouse.pressed()) {
-		  player.stats.bateau.resistance.degats -= 0.1;
-		  player.stats.bateau.resistance.degats = parseFloat(player.stats.bateau.resistance.degats.toFixed(2));
-		  backup.functions.textResistance.text = "Résistance : " + player.stats.bateau.resistance.degats;
-	  }
-	  
-	  if (backup.functions.buttonMoreResistanceFeu.mouse.pressed()) {
-		  player.stats.bateau.resistance.feu += 0.1;
-		  player.stats.bateau.resistance.feu = parseFloat(player.stats.bateau.resistance.feu.toFixed(2));
-		  backup.functions.textResistanceFeu.text = "Résistance Feu : " + player.stats.bateau.resistance.feu;
-	  } else if (backup.functions.buttonLessResistanceFeu.mouse.pressed()) {
-		  player.stats.bateau.resistance.feu -= 0.1;
-		  player.stats.bateau.resistance.feu = parseFloat(player.stats.bateau.resistance.feu.toFixed(2));
-		  backup.functions.textResistanceFeu.text = "Résistance Feu : " + player.stats.bateau.resistance.feu;
-	  }
-  
-	  if (backup.functions.buttonMoreDegatsBase.mouse.pressed()) {
-		  player.stats.arme.degats.base += 1;
-		  backup.functions.textDegatsBase.text = "Dégâts Base : " + player.stats.arme.degats.base;
-	  } else if (backup.functions.buttonLessDegatsBase.mouse.pressed()) {
-		  player.stats.arme.degats.base -= 1;
-		  backup.functions.textDegatsBase.text = "Dégâts Base : " + player.stats.arme.degats.base;
-	  }
-  
-	  if (backup.functions.buttonMoreDegatsFeu.mouse.pressed()) {
-		  player.stats.arme.degats.feu += 1;
-		  backup.functions.textDegatsFeu.text = "Dégâts Feu : " + player.stats.arme.degats.feu;
-	  } else if (backup.functions.buttonLessDegatsFeu.mouse.pressed()) {
-		  player.stats.arme.degats.feu -= 1;
-		  backup.functions.textDegatsFeu.text = "Dégâts Feu : " + player.stats.arme.degats.feu;
-	  }
-  
-	  if (backup.functions.buttonMoreRecharge.mouse.pressed()) {
-		  player.stats.arme.recharge += 1;
-		  backup.functions.textRecharge.text = "Recharge : " + player.stats.arme.recharge;
-	  } else if (backup.functions.buttonLessRecharge.mouse.pressed()) {
-		  player.stats.arme.recharge -= 1;
-		  backup.functions.textRecharge.text = "Recharge : " + player.stats.arme.recharge;
-	  }
-  
-	  if (backup.functions.buttonMoreVitesse.mouse.pressed()) {
-		  player.stats.arme.vitesse += 1;
-		  backup.functions.textVitesse.text = "Vitesse : " + player.stats.arme.vitesse;
-	  } else if (backup.functions.buttonLessVitesse.mouse.pressed()) {
-		  player.stats.arme.vitesse -= 1;
-		  backup.functions.textVitesse.text = "Vitesse : " + player.stats.arme.vitesse;
-	  }
-  
-	  if (backup.functions.buttonMoreDispersion.mouse.pressed()) {
-		  player.stats.arme.dispersion += 1;
-		  backup.functions.textDispersion.text = "Dispersion : " + player.stats.arme.dispersion;
-	  } else if (backup.functions.buttonLessDispersion.mouse.pressed()) {
-		  player.stats.arme.dispersion -= 1;
-		  backup.functions.textDispersion.text = "Dispersion : " + player.stats.arme.dispersion;
-	  }
-  
-	  if (backup.functions.buttonMorePortee.mouse.pressed()) {
-		  player.stats.arme.portee += 10;
-		  backup.functions.textPortee.text = "Portée : " + player.stats.arme.portee;
-	  } else if (backup.functions.buttonLessPortee.mouse.pressed()) {
-		  player.stats.arme.portee -= 10;
-		  backup.functions.textPortee.text = "Portée : " + player.stats.arme.portee;
-	  }
-  
-	  if (backup.functions.buttonMoreProjectiles.mouse.pressed()) {
-		  player.stats.arme.projectiles += 1;
-		  backup.functions.textProjectiles.text = "Projectiles : " + player.stats.arme.projectiles;
-	  } else if (backup.functions.buttonLessProjectiles.mouse.pressed()) {
-		  player.stats.arme.projectiles -= 1;
-		  backup.functions.textProjectiles.text = "Projectiles : " + player.stats.arme.projectiles;
-	  }
-  
-	  if (backup.functions.buttonMoreTailleArme.mouse.pressed()) {
-		  player.stats.arme.taille += 0.1;
-		  player.stats.arme.taille = parseFloat(player.stats.arme.taille.toFixed(2));
-		  backup.functions.textTailleArme.text = "Taille Arme : " + player.stats.arme.taille;
-	  } else if (backup.functions.buttonLessTailleArme.mouse.pressed()) {
-		  player.stats.arme.taille -= 0.1;
-		  player.stats.arme.taille = parseFloat(player.stats.arme.taille.toFixed(2));
-		  backup.functions.textTailleArme.text = "Taille Arme : " + player.stats.arme.taille;
-	  }
-  
-	  if (backup.functions.buttonMorePenetration.mouse.pressed()) {
-		  player.stats.arme.penetration += 1;
-		  backup.functions.textPenetration.text = "Pénétration : " + player.stats.arme.penetration;
-	  } else if (backup.functions.buttonLessPenetration.mouse.pressed()) {
-		  player.stats.arme.penetration -= 1;
-		  backup.functions.textPenetration.text = "Pénétration : " + player.stats.arme.penetration;
-	  }
-  
-	  if (backup.functions.buttonMoreRicochets.mouse.pressed()) {
-		  player.stats.arme.ricochets += 1;
-		  backup.functions.textRicochets.text = "Ricochets : " + player.stats.arme.ricochets;
-	  } else if (backup.functions.buttonLessRicochets.mouse.pressed()) {
-		  player.stats.arme.ricochets -= 1;
-		  backup.functions.textRicochets.text = "Ricochets : " + player.stats.arme.ricochets;
-	  }
-  
 }
 
