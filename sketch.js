@@ -20,9 +20,9 @@ let player = {
 			degats: {
 				base: 10.00,
 				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
-				dureeFeu: 5000, // En millisecondes
+				dureeFeu: 5, // En secondes
 			},
-			recharge: 0, // En millisecondes
+			recharge: 2, // En secondes
 			vitesse: 5, 
 			dispersion: 10, // En degrés
 			portee: 500, // En pixels
@@ -158,7 +158,16 @@ let player = {
 			}
 		},
 
-		
+		initialize: function(){
+			player.sprite = new Sprite(windowWidth/2, windowHeight/2);
+			player.sprite.width = 64;
+			player.sprite.height = 32;
+			player.sprite.scale = 1.2;
+			player.sprite.collider = 'dynamic';
+			player.sprite.image = loadImage('assets/player.png');
+			player.sprite.image.direction = 90;
+			player.sprite.mass = 10;
+		}
 	}
 
 };
@@ -205,6 +214,15 @@ let viseur = {
 			} else {
 				arme.utility.visee = "right"; // Right zone
 			}
+		},
+
+		initialize: function(){
+			viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
+			viseur.sprite.width = 64;
+			viseur.sprite.height = 8;
+			viseur.sprite.offset.x = 32;
+			viseur.sprite.collider = 'none';
+			viseur.sprite.opacity = 0;
 		}
 	}
 };
@@ -283,6 +301,14 @@ let arme = {
 				}
 			}
 		},
+
+		initialize: function(){
+			arme.sprite = new Sprite(player.sprite.x, player.sprite.y);
+			arme.sprite.width = 32;
+			arme.sprite.height = 8;
+			arme.sprite.offset.x = 16;
+			arme.sprite.collider = 'none';
+		}
 	}
 }
 
@@ -331,11 +357,142 @@ let reticule = {
 				reticule.sprite.image = loadImage('assets/retidroite.png');
 			}
 		},
+
+		initialize: function(){
+			reticule.sprite = new Sprite(mouseX, mouseY);
+			reticule.sprite.collider = 'none';
+			reticule.sprite.image = loadImage('assets/crosshair.png');
+		}
 	}
 }
 
+let ennemi = {
+	stats : {
+		bateau: {
+			vie: 40,
+			vitesse: 1.5,
+			maniabilite: 1,
+			collision: 1.00,
+			taille: 1.00, // Taille doit être la valeur qu'on donnera à scale
+			resistance: { // Les résistances sont des pourcentages (1 = 100% de dégâts subis)
+				feu: 1.00,
+				degats: 1.00
+			},
+			xpDrop: 10,
+		},
+		arme: {
+			degats: {
+				base: 10.00,
+				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
+				dureeFeu: 5000, // En millisecondes
+			},
+			recharge: 4000, // En millisecondes
+			vitesse: 5, 
+			dispersion: 10, // En degrés
+			portee: 500, // En pixels
+			projectiles: 1,
+			taille: 1, // Taille doit être la valeur qu'on donnera à scale
+			penetration: 0, // Nombre de cibles que peut traverser un projectile
+			ricochets: 0, // Nombre de fois qu'un projectile peut rebondir
+		}
+	},
+
+	utility :{
+		
+	},
+
+	functions: {
+		runAll : function(){
+			ennemi.functions.mouvement();
+		},
+
+		spawn : function(){
+			let mob = {} 
+			mob.stats = ennemi.stats;
+			mob.sensRotation = floor(random(0, 2));
+			mob.distanceCible = floor(random(200, 400));
+
+			mob.functions = {
+
+				mouvement : function(){
+					let distance = dist(mob.sprite.x, mob.sprite.y, player.sprite.x, player.sprite.y);
+					if (distance > mob.distanceCible){
+						mob.sprite.rotateTowards(player.sprite, 0.1, 0);
+						mob.sprite.direction = mob.sprite.rotation;
+					}
+					else {
+						if (mob.sensRotation == 0){
+							if (distance < mob.distanceCible*0.75){
+								mob.sprite.rotateTowards(player.sprite, 0.1, 120);
+							}
+							else {
+								mob.sprite.rotateTowards(player.sprite, 0.1, 90);
+							}
+							mob.sprite.direction = mob.sprite.rotation;
+						}
+						else {
+							if (distance < mob.distanceCible*0.75){
+								mob.sprite.rotateTowards(player.sprite, 0.1, -120);
+							}
+							else {
+								mob.sprite.rotateTowards(player.sprite, 0.1, -90);
+							}
+							mob.sprite.direction = mob.sprite.rotation;
+						}
+					}
+					mob.sprite.speed = mob.stats.bateau.vitesse;
+				},
+				
+				update : function(){
+					mob.functions.mouvement();
+				}
+
+			}
+
+			mob.sprite = new Sprite(random(0, windowWidth), random(0, windowHeight));
+			mob.sprite.width = 64;
+			mob.sprite.height = 32;
+			mob.sprite.scale = 1.2;
+			mob.sprite.collider = 'none';
+			mob.sprite.drag = 10;
+			mob.sprite.rotationDrag = 1;
+			mob.sprite.mass = 1;
+
+			spawnRoutine.utility.ennemis.push(mob);
+		},
 
 
+	}
+}
+
+let spawnRoutine = {
+	utility : {
+		ennemis: [],
+		intervalle: 2,
+		ennemisMax: 5,
+	},
+
+	functions: {
+		runAll : function(){
+			spawnRoutine.functions.spawn();
+			spawnRoutine.functions.update();
+		},
+
+		spawn : function(){
+			if (frameCount % (spawnRoutine.utility.intervalle * 60) == 0){
+				if (spawnRoutine.utility.ennemis.length < spawnRoutine.utility.ennemisMax){
+					ennemi.functions.spawn();
+				}
+			}
+		},
+
+		update : function(){
+			for (let mob of spawnRoutine.utility.ennemis){
+				mob.functions.update();
+			}
+		}
+	}
+}
 
 function setup() {
 	frameRate(60);
@@ -350,14 +507,10 @@ function setup() {
 
 	//start..........................
 	
-
-	player.sprite = new Sprite(windowWidth/2, windowHeight/2);
-	player.sprite.width = 64;
-	player.sprite.height = 32;
-	player.sprite.scale = 1.2;
-	player.sprite.collider = 'dynamic';
-	player.sprite.image = loadImage('assets/player.png');
-	player.sprite.image.direction = 90;
+	player.functions.initialize();
+	viseur.functions.initialize();
+	arme.functions.initialize();
+	reticule.functions.initialize();
 
 	time = new Sprite(player.sprite.x-(windowWidth/2)+180, player.sprite.y-(windowHeight/2)+50, 0, 0);
 	time.textSize = 40;
@@ -387,25 +540,8 @@ function setup() {
 	exptext.textColor = "white";
 	exptext.layer=1000000;
 
-	viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
-	viseur.sprite.width = 64;
-	viseur.sprite.height = 8;
-	viseur.sprite.offset.x = 32;
-	viseur.sprite.collider = 'none';
-	viseur.sprite.opacity = 0;
-
-	arme.sprite = new Sprite(player.sprite.x, player.sprite.y);
-	arme.sprite.width = 32;
-	arme.sprite.height = 8;
-	arme.sprite.offset.x = 16;
-	arme.sprite.collider = 'none';
-
 	let reference = new Sprite(windowWidth/2+100, windowHeight/2);
 	reference.collider = 'static';
-
-	reticule.sprite = new Sprite(mouseX, mouseY);
-	reticule.sprite.collider = 'none';
-	reticule.sprite.image = loadImage('assets/crosshair.png');
 
     backup.functions.initialize();
 }
@@ -1139,11 +1275,12 @@ function draw() {
 	arme.functions.runAll();
 	reticule.functions.runAll();
 	projectile.functions.runAll();
+	spawnRoutine.functions.runAll();
 
 	backup.functions.run();
 
 	player.sprite.layer = 100;
 	viseur.sprite.layer = 101;
-	
+
 }
 
