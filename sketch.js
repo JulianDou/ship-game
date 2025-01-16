@@ -20,7 +20,7 @@ let player = {
 			degats: {
 				base: 10.00,
 				feu: 0.00, // La quantité de dégâts qu'inflige le feu chaque seconde
-				dureeFeu: 5000, // En millisecondes
+				dureeFeu: 5, // En millisecondes
 			},
 			recharge: 0, // En millisecondes
 			vitesse: 5, 
@@ -302,12 +302,32 @@ let projectile = {
 
 			for (let boulet of projectile.utility.projectiles) {
 				for (let mob of speudomob.utility.speudomob) {
+					
 					if (boulet.overlaps(mob)) {
-						mob.vie -= 1;
+						mob.vie -= player.stats.arme.degats.base;
+
+							if(player.stats.arme.degats.feu > 0){
+								let feuInterval = setInterval(() => {
+									mob.vie -= player.stats.arme.degats.feu;
+									if (mob.vie <= 0) {
+										clearInterval(feuInterval);
+										mob.remove();
+										console.log(mob.vie);
+									}
+								}, 1000);
+
+								setTimeout(() => {
+									clearInterval(feuInterval);
+								}, 10000);
+								
+							}
+						
+							
 						if (player.stats.arme.penetration<= 1){
 						boulet.remove();
 					}
 						if (mob.vie <= 0) {
+							clearInterval(feuInterval);
 							mob.remove();
 							
 						}
@@ -429,6 +449,7 @@ let speudomob = {
 		runAll : function(){
 			speudomob.functions.update();
 			
+			
 		},
 
 		update : function(){
@@ -443,7 +464,7 @@ let speudomob = {
 			speudoMob.height = 50;
 			speudoMob.color = "red";
 			speudoMob.collider = "dynamic";
-			speudoMob.vie = 3;
+			speudoMob.vie = 300;
 			speudoMob.experience = 470;
 			speudomob.utility.speudomob.push(speudoMob);
 		}
@@ -453,12 +474,6 @@ let speudomob = {
 
 	
 }
-
-
-
-
-
-
 
 
 function setup() {
