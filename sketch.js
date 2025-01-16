@@ -638,5 +638,5 @@ function draw() {
 	  buttonLessResistanceFeu.x = xOffSet + 100;
 	  buttonLessResistanceFeu.y = player.sprite.y - (windowHeight / 2) + 630;
   
-  */z
+  */
 }
