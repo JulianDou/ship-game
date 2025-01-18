@@ -1011,27 +1011,29 @@ let player = {
         sprite.rotation = -90;
       }
     } else if ((hasTop && hasRight) || (hasTop && hasBottom) || (hasTop && hasLeft) || (hasRight && hasBottom) || (hasRight && hasLeft) || (hasBottom && hasLeft)) {
-      sprite.image = loadImage("assets/ile-2.png");
+      
       if (hasRight && hasTop) {
         sprite.rotation = 90;
         sprite.image = loadImage("assets/ile-2.png");
-      }
+      } else
       if (hasRight && hasBottom) {
         sprite.rotation = 180;
         sprite.image = loadImage("assets/ile-2.png");
-      }
+      }else
       if (hasLeft && hasBottom) {
         sprite.rotation = -90;
         sprite.image = loadImage("assets/ile-2.png");
-      }
+      }else
 
       if(hasRight && hasLeft){
         
         sprite.image = loadImage("assets/ile-5.png");
-      }
+      }else
       if(hasBottom && hasTop ){
         sprite.rotation = 90;
         sprite.image = loadImage("assets/ile-5.png");
+      }else{
+        sprite.image = loadImage("assets/ile-2.png");
       }
 
     } else if (hasTop || hasRight || hasBottom || hasLeft) {
@@ -1116,6 +1118,8 @@ let player = {
     },
 
     run: function () {
+
+	 
 
       for (let text of interniveau.utility.textamelioration) {
         text.x = player.sprite.x - windowWidth / 2 + 200;
