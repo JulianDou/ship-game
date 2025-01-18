@@ -2,6 +2,7 @@ let player = {
   stats: {
       bateau: {
           vie: 100,
+          vieMax: 100,
           vitesse: 2.5,
           maniabilite: 1.5,
           collision: 1.0,
@@ -1176,6 +1177,7 @@ let interniveau = {
         interniveau.utility.ecran.remove();
         interniveau.utility.buttonpast.remove();
         world.timeScale = 1;
+        player.stats.bateau.vie = player.stats.bateau.vieMax;
     }
   },
 
@@ -1197,15 +1199,15 @@ let interniveau = {
       let buttonpast = new Sprite(
           player.sprite.x + windowWidth / 2 - 200,
           player.sprite.y + windowHeight / 2 - 100,
-          100,
+          300,
           500
       );
-      buttonpast.width = 200;
+      buttonpast.width = 350;
       buttonpast.height = 50;
       buttonpast.color = "gray";
 
       buttonpast.layer = 100000000;
-      buttonpast.text = "Passer";
+      buttonpast.text = "Regagnez vos PV";
       buttonpast.textSize = 40;
       buttonpast.textColor = "white";
       interniveau.utility.buttonpast = buttonpast;
@@ -1519,7 +1521,7 @@ let backup = {
                   0
               );
               this.textVie.textSize = 30;
-              this.textVie.text = "Vie : " + player.stats.bateau.vie;
+              this.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
               this.textVie.collider = collid;
               this.textVie.textColor = "white";
               this.textVie.layer = 100000000;
@@ -2490,11 +2492,11 @@ let backup = {
               }
 
               if (back.buttonMoreVie.mouse.pressed()) {
-                  player.stats.bateau.vie += 10;
-                  back.textVie.text = "Vie : " + player.stats.bateau.vie;
+                  player.stats.bateau.vieMax += 10;
+                  back.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
               } else if (back.buttonLessVie.mouse.pressed()) {
-                  player.stats.bateau.vie -= 10;
-                  back.textVie.text = "Vie : " + player.stats.bateau.vie;
+                  player.stats.bateau.vieMax -= 10;
+                  back.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
               }
 
               if (back.buttonMoreManiabilite.mouse.pressed()) {
