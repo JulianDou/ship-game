@@ -51,7 +51,7 @@ let player = {
 		},
 	  },
 	},
-	
+  
 	functions: {
 	  runAll: function () {
 		player.functions.inputs();
@@ -145,6 +145,7 @@ let player = {
 		  player.stats.bateau.experience = 0;
 		  player.stats.bateau.niveau += 1;
 		  player.stats.bateau.expMax = player.stats.bateau.expMax + 50;
+      interniveau.initialize();
 		}
 	  },
   
@@ -157,11 +158,12 @@ let player = {
 		player.sprite.image = loadImage("assets/player.png");
 		player.sprite.image.direction = 90;
 		player.sprite.mass = 10;
+    player.sprite.layer = 5;
 	  },
 	},
-  };
+};
   
-  let viseur = {
+let viseur = {
 	utility: {
 	  direction: 0,
 	},
@@ -216,9 +218,9 @@ let player = {
 		viseur.sprite.opacity = 0;
 	  },
 	},
-  };
+};
   
-  let arme = {
+let arme = {
 	utility: {
 	  visee: "left", // left ou right
 	  recharge: 0,
@@ -235,10 +237,13 @@ let player = {
 		  boulet.ennemisPerces = 0;
 		  boulet.rebonds = 0;
 		  boulet.porteeMax = player.stats.arme.portee + random(-10, 10);
+      boulet.layer = 0;
   
 		  boulet.diameter = 10;
 		  boulet.collider = "none";
 		  boulet.color = "black";
+      boulet.image = loadImage("assets/boulet.png");
+      boulet.image.scale = player.stats.arme.taille / 5;
 		  boulet.scale = player.stats.arme.taille;
 		  if (arme.utility.visee == "left") {
 			boulet.direction = player.utility.direction - 90;
@@ -304,17 +309,42 @@ let player = {
 		arme.sprite.collider = "none";
 	  },
 	},
-  };
+};
   
-  let projectile = {
+let projectile = {
 	utility: {
 	  projectiles: [],
+    explosions: [],
 	},
   
 	functions: {
 	  runAll: function () {
 		projectile.functions.update();
 	  },
+
+    explosion: function () {
+      for (let i = projectile.utility.explosions.length - 1; i >= 0; i--) {
+        let explosion = projectile.utility.explosions[i];
+        explosion.opacity -= 0.02;
+        explosion.scale += 0.02;
+        if (explosion.opacity <= 0) {
+          projectile.utility.explosions.splice(i, 1);
+          explosion.remove();
+        }
+      }
+    },
+
+    createExplosion: function (x, y) {
+      let explosion = new Sprite(x, y);
+      explosion.width = 64;
+      explosion.height = 64;
+      explosion.image = loadImage("assets/explosion.png");
+      explosion.collider = "none";
+      explosion.layer = 1;
+      explosion.opacity = 1;
+      explosion.scale = player.stats.arme.taille;
+      projectile.utility.explosions.push(explosion);
+    },
   
 	  checkDistance: function (boulet) {
 		if ((boulet.source = "player")) {
@@ -323,6 +353,7 @@ let player = {
 			boulet.porteeMax
 		  ) {
 			player.utility.functions.createVague(boulet.x, boulet.y);
+      
 			boulet.remove();
 			projectile.utility.projectiles.splice(
 			  projectile.utility.projectiles.indexOf(boulet),
@@ -336,11 +367,14 @@ let player = {
 		for (let boulet of projectile.utility.projectiles) {
 		  projectile.functions.checkDistance(boulet);
 		}
+    projectile.functions.explosion();
 	  },
+
+   
 	},
-  };
+};
   
-  let reticule = {
+let reticule = {
 	functions: {
 	  runAll: function () {
 		reticule.functions.mouvement();
@@ -367,95 +401,98 @@ let player = {
 		reticule.sprite.image = loadImage("assets/crosshair.png");
 	  },
 	},
-  };
+};
   
-  let expblock = {
-	utility: {
-	  expblock: [],
-	},
+let expblock = {
+    utility: {
+      expblock: [],
+    },
+
+    functions: {
+      runAll: function () {
+        expblock.functions.update();
+      },
+
+      update: function () {
+        for (let i = expblock.utility.expblock.length - 1; i >= 0; i--) {
+          let expBlock = expblock.utility.expblock[i];
+          if (player.sprite.overlaps(expBlock)) {
+            player.stats.bateau.experience += expBlock.experience;
+            expBlock.remove();
+            expblock.utility.expblock.splice(i, 1);
+          }
+
+          if (expBlock.timer === undefined) {
+            expBlock.timer = 0;
+          } else {
+            expBlock.timer++;
+          }
+
+          let randomexp = random(300, 50000);
+
+          if (expBlock.timer >= randomexp) {
+            // 5 à 10 secondes
+
+            expBlock.remove();
+            expblock.utility.expblock.splice(i, 1);
+          }
+        }
+      },
+
+      dropEXP: function (amount, x, y) {
+        while (amount > 0) {
+          let offsetX = random(-50, 50);
+          let offsetY = random(-50, 50);
+          if (amount >= expblock.types.darkGreen.experience) {
+            expblock.functions.createExpBlock(
+              expblock.types.darkGreen,
+              x + offsetX,
+              y + offsetY
+            );
+            amount -= expblock.types.darkGreen.experience;
+          } else if (amount >= expblock.types.green.experience) {
+            expblock.functions.createExpBlock(
+              expblock.types.green,
+              x + offsetX,
+              y + offsetY
+            );
+            amount -= expblock.types.green.experience;
+          } else {
+            expblock.functions.createExpBlock(
+              expblock.types.lightGreen,
+              x + offsetX,
+              y + offsetY
+            );
+            amount -= expblock.types.lightGreen.experience;
+          }
+        }
+      },
+
+      createExpBlock: function (type, x, y) {
+        let expBlock = new Sprite(x, y);
+        expBlock.shape = "circle";
+        expBlock.collider = "static";
+        expBlock.color = type.color;
+        expBlock.scale = type.scale;
+        expBlock.experience = type.experience;
+        expBlock.overlaps = false;
+        expBlock.collider = "none";
+        expBlock.layer = -1;
+        if (type.image) {
+          expBlock.image = loadImage(type.image);
+        }
+        expblock.utility.expblock.push(expBlock);
+      },
+    },
+
+    types: {
+      lightGreen: { color: "lightgreen", scale: 0.4, experience: 10, image: "assets/exp-2.png" },
+      green: { color: "green", scale: 0.6, experience: 50, image: "assets/exp2-2.png" },
+      darkGreen: { color: "cyan", scale: 0.8, experience: 100, image: "assets/exp3-2.png" },
+    },
+};
   
-	functions: {
-	  runAll: function () {
-		expblock.functions.update();
-	  },
-  
-	  update: function () {
-		for (let i = expblock.utility.expblock.length - 1; i >= 0; i--) {
-		  let expBlock = expblock.utility.expblock[i];
-		  if (player.sprite.overlaps(expBlock)) {
-			player.stats.bateau.experience += expBlock.experience;
-			expBlock.remove();
-			expblock.utility.expblock.splice(i, 1);
-		  }
-  
-		  if (expBlock.timer === undefined) {
-			expBlock.timer = 0;
-		  } else {
-			expBlock.timer++;
-		  }
-  
-		  let randomexp = random(300, 50000);
-  
-		  if (expBlock.timer >= randomexp) {
-			// 5 à 10 secondes
-  
-			expBlock.remove();
-			expblock.utility.expblock.splice(i, 1);
-		  }
-		}
-	  },
-  
-	  dropEXP: function (amount, x, y) {
-		while (amount > 0) {
-		  let offsetX = random(-50, 50);
-		  let offsetY = random(-50, 50);
-		  if (amount >= expblock.types.darkGreen.experience) {
-			expblock.functions.createExpBlock(
-			  expblock.types.darkGreen,
-			  x + offsetX,
-			  y + offsetY
-			);
-			amount -= expblock.types.darkGreen.experience;
-		  } else if (amount >= expblock.types.green.experience) {
-			expblock.functions.createExpBlock(
-			  expblock.types.green,
-			  x + offsetX,
-			  y + offsetY
-			);
-			amount -= expblock.types.green.experience;
-		  } else {
-			expblock.functions.createExpBlock(
-			  expblock.types.lightGreen,
-			  x + offsetX,
-			  y + offsetY
-			);
-			amount -= expblock.types.lightGreen.experience;
-		  }
-		}
-	  },
-  
-	  createExpBlock: function (type, x, y) {
-		let expBlock = new Sprite(x, y);
-		expBlock.shape = "circle";
-		expBlock.collider = "static";
-		expBlock.color = type.color;
-		expBlock.scale = type.scale;
-		expBlock.experience = type.experience;
-		expBlock.overlaps = false;
-		expBlock.collider = "none";
-		expBlock.layer = -1;
-		expblock.utility.expblock.push(expBlock);
-	  },
-	},
-  
-	types: {
-	  lightGreen: { color: "lightgreen", scale: 0.4, experience: 10 },
-	  green: { color: "green", scale: 0.6, experience: 50 },
-	  darkGreen: { color: "cyan", scale: 0.8, experience: 100 },
-	},
-  };
-  
-  let ennemi = {
+let ennemi = {
 	stats: {
 	  bateau: {
 		vie: 40,
@@ -505,19 +542,23 @@ let player = {
 		mob.id = ennemi.utility.mobcount++;
   
 		// Create detection sprites
-		mob.detecmobright = new Sprite(mob.x + 100, mob.y+35);
-		mob.detecmobright.width = 120;
-		mob.detecmobright.height = 35;
-		mob.detecmobright.collider = "none";
-		mob.detecmobright.color = "red";
-		mob.detecmobright.opacity = 0.5;
+    mob.detecmobright = new Sprite(mob.x + 100, mob.y + 35);
+    mob.detecmobright.width = 120;
+    mob.detecmobright.height = 35;
+    mob.detecmobright.collider = "none";
+    mob.detecmobright.color = "red";
+    mob.detecmobright.opacity = 0.5;
+    mob.detecmobright.offset.x = 60; // Offset for center of rotation
+    mob.detecmobright.offset.y = 17.5; // Offset for center of rotation
 
-		mob.detecmobleft = new Sprite(mob.x + 100, mob.y-35);
-		mob.detecmobleft.width = 120;
-		mob.detecmobleft.height = 35;
-		mob.detecmobleft.collider = "none";
-		mob.detecmobleft.color = "green";
-		mob.detecmobleft.opacity = 0.5;
+    mob.detecmobleft = new Sprite(mob.x + 100, mob.y - 35);
+    mob.detecmobleft.width = 120;
+    mob.detecmobleft.height = 35;
+    mob.detecmobleft.collider = "none";
+    mob.detecmobleft.color = "green";
+    mob.detecmobleft.opacity = 0.5;
+    mob.detecmobleft.offset.x = 60; // Offset for center of rotation
+    mob.detecmobleft.offset.y = -17.5; // Offset for center of rotation
   
 		mob.functions = {
 		  mouvement: function () {
@@ -544,14 +585,14 @@ let player = {
 			}
 			mob.speed = mob.stats.bateau.vitesse;
   
-			// Update detection sprites position
-			mob.detecmobright.x = mob.x + cos(radians(mob.rotation))-17.5;
-			mob.detecmobright.y = mob.y + sin(radians(mob.rotation)) * 17.5;
-			mob.detecmobright.rotation = mob.rotation;
-			
-			mob.detecmobleft.x = mob.x - cos(radians(mob.rotation))+17.5;
-			mob.detecmobleft.y = mob.y - sin(radians(mob.rotation)) * 17.5;
-			mob.detecmobleft.rotation = mob.rotation;
+      // Update detection sprites position
+    mob.detecmobright.x = mob.x ;
+    mob.detecmobright.y = mob.y ;
+    mob.detecmobright.rotation = mob.rotation;
+    
+    mob.detecmobleft.x = mob.x ;
+    mob.detecmobleft.y = mob.y;
+    mob.detecmobleft.rotation = mob.rotation;
 		  },
   
 		  update: function () {
@@ -572,6 +613,109 @@ let player = {
 		  checkHit: function () {
 			let check = false;
 			for (let boulet of projectile.utility.projectiles) {
+		  if (mob.overlaps(boulet) || iles.utility.iles.some(ile => ile.some(sprite => sprite.overlaps(boulet)))) {
+			check = true;
+			if (!mob.touche) {
+			  if (mob.stats.bateau.vie >= boulet.vie) {
+			mob.stats.bateau.vie -= boulet.vie;
+			boulet.vie = 0;
+			  } else {
+			let vieavant = mob.stats.bateau.vie;
+			mob.stats.bateau.vie -= degats;
+			boulet.vie -= vieavant;
+			  }
+			  if (boulet.vie <= 0) {
+          projectile.functions.createExplosion(boulet.x, boulet.y);
+			boulet.remove();
+			projectile.utility.projectiles.splice(
+			  projectile.utility.projectiles.indexOf(boulet),
+			  1
+			);
+			  }
+			}
+		  }
+			}
+			if (check) {
+		  mob.touche = true;
+			} else {
+		  mob.touche = false;
+			}
+		  },
+  
+		  die: function () {
+			expblock.functions.dropEXP(mob.stats.bateau.xpDrop, mob.x, mob.y);
+  
+			spawnRoutine.utility.functions.killMob(mob.id);
+		  },
+  
+		  checkcollision: function () {
+			for (let ile of window.iles.utility.iles) {
+		  for (let sprite of ile) {
+			if (mob.detecmobright.overlaps(sprite)) {
+
+			mob.rotation += 45;
+			 
+			  
+			}else if (mob.detecmobleft.overlaps(sprite)) {
+		mob.rotation -= 45;
+
+		  }
+			}
+		  }
+		},
+  
+		mouvement: function () {
+			let distance = dist(mob.x, mob.y, player.sprite.x, player.sprite.y);
+			if (distance > mob.distanceCible) {
+		  mob.rotateTowards(player.sprite, 0.1, 0);
+		  mob.direction = mob.rotation;
+			} else {
+		  if (mob.sensRotation == 0) {
+			if (distance < mob.distanceCible * 0.75) {
+			  mob.rotateTowards(player.sprite, 0.1, 120);
+			} else {
+			  mob.rotateTowards(player.sprite, 0.1, 90);
+			}
+			mob.direction = mob.rotation;
+		  } else {
+			if (distance < mob.distanceCible * 0.75) {
+			  mob.rotateTowards(player.sprite, 0.1, -120);
+			} else {
+			  mob.rotateTowards(player.sprite, 0.1, -90);
+			}
+			mob.direction = mob.rotation;
+		  }
+			}
+			mob.speed = mob.stats.bateau.vitesse;
+  
+	  // Update detection sprites position
+	mob.detecmobright.x = mob.x ;
+	mob.detecmobright.y = mob.y ;
+	mob.detecmobright.rotation = mob.rotation;
+	
+	mob.detecmobleft.x = mob.x ;
+	mob.detecmobleft.y = mob.y;
+	mob.detecmobleft.rotation = mob.rotation;
+		  },
+  
+		  update: function () {
+			mob.functions.mouvement();
+  
+			if (frameCount % 15 == 0) {
+		  spawnRoutine.utility.functions.createVague(mob.x, mob.y);
+			}
+  
+			if (mob.stats.bateau.vie <= 0) {
+		  mob.functions.die();
+			}
+  
+			mob.functions.checkHit();
+			mob.functions.checkcollision();
+		  },
+  
+		  checkHit: function () {
+			let check = false;
+			for (let boulet of projectile.utility.projectiles) {
 		  if (mob.overlaps(boulet)) {
 			check = true;
 			if (!mob.touche) {
@@ -584,6 +728,7 @@ let player = {
 			boulet.vie -= vieavant;
 			  }
 			  if (boulet.vie <= 0) {
+          projectile.functions.createExplosion(boulet.x, boulet.y);
 			boulet.remove();
 			projectile.utility.projectiles.splice(
 			  projectile.utility.projectiles.indexOf(boulet),
@@ -609,17 +754,35 @@ let player = {
 		  checkcollision: function () {
 			for (let ile of iles.utility.iles) {
 		  for (let sprite of ile) {
-			if (mob.detecmob.overlaps(sprite)) {
-			  if (mob.sensRotation == 0) {
-			mob.rotation += 45;
-			  } else {
-			mob.rotation -= 45;
-			  }
-			}
-		  }
-			}
-		  },
-		};
+			if (mob.detecmobright.overlaps(sprite)) {
+
+        setTimeout(() => {
+          mob.rotation -= 45;
+          mob.x -= mob.stats.bateau.vitesse;
+          mob.y -= mob.stats.bateau.vitesse;
+        }, 5000);
+      
+			 
+			  
+			}else if (mob.detecmobleft.overlaps(sprite)) {
+        setTimeout(() => {
+          mob.rotation += 45;
+          mob.x -= mob.stats.bateau.vitesse;
+          mob.y -= mob.stats.bateau.vitesse;
+        }, 5000);
+
+		        } else if(mob.detecmobright.overlaps(sprite) && mob.detecmobleft.overlaps(sprite)){
+
+          setTimeout(() => {
+            mob.x -= mob.stats.bateau.vitesse;
+            mob.y -= mob.stats.bateau.vitesse;
+          }, 5000);
+			    }
+        }
+		    }
+      }
+
+    }
   
 		mob.width = 64;
 		mob.height = 32;
@@ -632,11 +795,12 @@ let player = {
 		mob.layer = 1;
   
 		spawnRoutine.utility.ennemis.push(mob);
-	  },
-	},
-  };
+	
+	}
+  }
+};
   
-  let spawnRoutine = {
+let spawnRoutine = {
 	utility: {
 	  ennemis: [],
 	  intervalle: 2,
@@ -660,6 +824,8 @@ let player = {
 		  for (let i = 0; i < spawnRoutine.utility.ennemis.length; i++) {
 			if (spawnRoutine.utility.ennemis[i].id == id) {
 			  spawnRoutine.utility.ennemis[i].remove();
+        spawnRoutine.utility.ennemis[i].detecmobright.remove();
+        spawnRoutine.utility.ennemis[i].detecmobleft.remove();
 			  indexToRemove = i;
 			  break;
 			}
@@ -718,14 +884,16 @@ let player = {
 		  );
 		  if (distance > max(windowWidth * 1.5, windowHeight * 1.5)) {
 			ennemi.remove();
+      ennemi.detecmobright.remove();
+      ennemi.detecmobleft.remove();
 			spawnRoutine.utility.ennemis.splice(i, 1);
 		  }
 		}
 	  },
 	},
-  };
+};
   
-  let iles = {
+let iles = {
 	utility: {
 	  iles: [],
 	  timerseconde: 0,
@@ -734,23 +902,24 @@ let player = {
 	functions: {
 	  runAll: function () {
 		iles.functions.removeile();
+    iles.functions.checkcollision();
+    
 	  },
   
-	  create: function (numIles) {
+	  create: function () {
 		let numbermaxiles = 5;
-		if (iles.utility.iles.length <= numbermaxiles) {
-		  for (let i = 0; i < numIles; i++) {
-			let x, y;
-			let validPosition = false;
-			while (!validPosition) {
-			  x = random(0, windowWidth);
-			  y = random(0, windowHeight);
-			  validPosition = iles.functions.isValidPosition(x, y);
-			}
-			let ile = iles.functions.createIlestart(x, y);
-			iles.utility.iles.push(ile);
-		  }
-		}
+    while (iles.utility.iles.length <= numbermaxiles) {
+      let x, y;
+      let validPosition = false;
+      while (!validPosition) {
+        x = random(player.sprite.x - windowWidth, player.sprite.x + windowWidth+200);
+        y = random(player.sprite.y - windowHeight, player.sprite.y + windowHeight+200);
+        validPosition = iles.functions.isValidPosition(x, y);
+      }
+      let ile = iles.functions.createIle(x, y);
+      
+      iles.utility.iles.push(ile);
+    }
 	  },
   
 	  isValidPosition: function (x, y) {
@@ -765,7 +934,7 @@ let player = {
 		return true;
 	  },
   
-	  createIlestart: function (x, y) {
+	  createIle: function (x, y) {
 		let ile = [];
 		let directions = [
 		  { x: 64, y: 0 },
@@ -792,7 +961,96 @@ let player = {
 		  let direction = random(directions);
 		  currentX += direction.x;
 		  currentY += direction.y;
+
+      
 		}
+
+    for (let sprite of ile) {
+      let surroundingSprites = 0;
+      for (let direction of directions) {
+        let neighborX = sprite.x + direction.x;
+        let neighborY = sprite.y + direction.y;
+        for (let otherSprite of ile) {
+          if (otherSprite.x === neighborX && otherSprite.y === neighborY) {
+            surroundingSprites++;
+            break;
+          }
+        }
+      }
+
+      let hasTop = false;
+      let hasRight = false;
+      let hasBottom = false;
+      let hasLeft = false;
+
+      for (let direction of directions) {
+        let neighborX = sprite.x + direction.x;
+        let neighborY = sprite.y + direction.y;
+        for (let otherSprite of ile) {
+          if (otherSprite.x === neighborX && otherSprite.y === neighborY) {
+        if (direction.x === 0 && direction.y === -64) hasTop = true;
+        if (direction.x === 64 && direction.y === 0) hasRight = true;
+        if (direction.x === 0 && direction.y === 64) hasBottom = true;
+        if (direction.x === -64 && direction.y === 0) hasLeft = true;
+          }
+        }
+      }
+
+    if (hasTop && hasRight && hasBottom && hasLeft) {
+      sprite.image = loadImage("assets/ile-0.png");
+    } else if ((hasTop && hasRight && hasBottom) || (hasTop && hasRight && hasLeft) || (hasTop && hasBottom && hasLeft) || (hasRight && hasBottom && hasLeft)) {
+      sprite.image = loadImage("assets/ile-1.png");
+
+      if (hasTop && hasRight && hasBottom) {
+        sprite.rotation = 90;
+      }
+      if (hasBottom && hasRight && hasLeft) {
+        sprite.rotation = 180;
+      }
+      if (hasTop && hasBottom && hasLeft) {
+        sprite.rotation = -90;
+      }
+    } else if ((hasTop && hasRight) || (hasTop && hasBottom) || (hasTop && hasLeft) || (hasRight && hasBottom) || (hasRight && hasLeft) || (hasBottom && hasLeft)) {
+      
+      if (hasRight && hasTop) {
+        sprite.rotation = 90;
+        sprite.image = loadImage("assets/ile-2.png");
+      } else
+      if (hasRight && hasBottom) {
+        sprite.rotation = 180;
+        sprite.image = loadImage("assets/ile-2.png");
+      }else
+      if (hasLeft && hasBottom) {
+        sprite.rotation = -90;
+        sprite.image = loadImage("assets/ile-2.png");
+      }else
+
+      if(hasRight && hasLeft){
+        
+        sprite.image = loadImage("assets/ile-5.png");
+      }else
+      if(hasBottom && hasTop ){
+        sprite.rotation = 90;
+        sprite.image = loadImage("assets/ile-5.png");
+      }else{
+        sprite.image = loadImage("assets/ile-2.png");
+      }
+
+    } else if (hasTop || hasRight || hasBottom || hasLeft) {
+      sprite.image = loadImage("assets/ile-3.png");
+      if (hasTop) {
+        sprite.rotation = 90;
+      }
+      if (hasRight) {
+        sprite.rotation = 180;
+      }
+      if (hasBottom) {
+        sprite.rotation = -90;
+      }
+    } else {
+      sprite.image = loadImage("assets/ile-4.png");
+    }
+    }
   
 		return ile;
 	  },
@@ -815,32 +1073,174 @@ let player = {
 		  }
 		  if (allSpritesOutOfScreen) {
 			for (let sprite of ile) {
+        
 			  sprite.remove();
+        iles.functions.create();
 			}
 			iles.utility.iles.splice(i, 1);
 			iles.utility.timerseconde = 0; // Reset timer when an island is removed
 		  }
 		}
-  
-		// Create new island after 5 seconds
-		if (iles.utility.timerseconde >= 500) {
-		  let newX =
-			player.sprite.x +
-			cos(radians(player.utility.direction)) * (windowWidth + 100);
-		  let newY =
-			player.sprite.y +
-			sin(radians(player.utility.direction)) * (windowHeight - 100);
-		  let newIle = iles.functions.createIlestart(newX, newY);
-		  iles.utility.iles.push(newIle);
-		  iles.utility.timerseconde = 0; // Reset timer after creating a new island
-		} else {
-		  iles.utility.timerseconde++;
-		}
 	  },
-	},
-  };
+
+    checkcollision: function () {
+      for (let boulet of projectile.utility.projectiles) {
+        if ( iles.utility.iles.some(ile => ile.some(sprite => sprite.overlaps(boulet)))) {
+          projectile.functions.createExplosion(boulet.x, boulet.y);
+        boulet.remove();
+        projectile.utility.projectiles.splice(
+          projectile.utility.projectiles.indexOf(boulet),
+          1
+        );
+          }
+        }
+        }
+        }
+
+};
+
+let interniveau = {
+
+    utility: {
+      smallDiamond: [],
+      largeDiamond: null,
+      smallDiamondtext: [],
+      ecran: null,
+      buttonpast: null,
+	  textamelioration: [],
+    },
+
+    runAll: function () {
+      for (let text of interniveau.utility.textamelioration) {
+        text.x = player.sprite.x - windowWidth / 2 + 200;
+        text.y = player.sprite.y - windowHeight / 2 + 300 + (interniveau.utility.textamelioration.indexOf(text) * 50);
+      }
+    },
+
+    run: function () {
+
+	 
+
+      for (let text of interniveau.utility.textamelioration) {
+        text.x = player.sprite.x - windowWidth / 2 + 200;
+        text.y = player.sprite.y - windowHeight / 2 + 300 + (interniveau.utility.textamelioration.indexOf(text) * 50);
+      }
+
+	  for (let i = 0; i < interniveau.utility.smallDiamond.length; i++) {
+		if (interniveau.utility.smallDiamond[i].mouse.pressed()) {
+      console.log(interniveau.utility.smallDiamondtext[i].text);
+      interniveau.createtext(interniveau.utility.smallDiamondtext[i].text);
+		  player.stats.bateau.experience += 10;
+		  interniveau.utility.smallDiamond.forEach(diamond => diamond.remove());
+		  interniveau.utility.largeDiamond.remove();
+		  interniveau.utility.smallDiamondtext.forEach(text => text.remove());
+      interniveau.utility.ecran.remove();
+      interniveau.utility.buttonpast.remove();
+		  world.timeScale = 1;
+		  break;
+		}
+	  }
+    
+    },
+
+    initialize: function () {
+      world.timeScale = 0;
+      let centerX = player.sprite.x;
+      let centerY = player.sprite.y;
+      let size = 600; // Size of the large diamond
+
+      let ecran = new Sprite(centerX, centerY, 0, 0);
+      ecran.width = windowWidth;
+      ecran.height = windowHeight;
+      ecran.color = "black";
+      ecran.opacity = 0.5;
+      ecran.collider = "none";
+      ecran.layer = 100000000;
+      interniveau.utility.ecran = ecran;
+
+      let buttonpast= new Sprite(player.sprite.x+ windowWidth/2-200, player.sprite.y+windowHeight/2-100, 100, 500);
+      buttonpast.width = 200;
+      buttonpast.height = 50;
+      buttonpast.color = "gray";
+      
+      buttonpast.layer = 100000000;
+      buttonpast.text = "Passer";
+      buttonpast.textSize = 40;
+      buttonpast.textColor = "white";
+      interniveau.utility.buttonpast = buttonpast;
+
+
+
+      // Create the large diamond
+      let largeDiamond = new Sprite(centerX, centerY);
+      largeDiamond.width = size;
+      largeDiamond.height = size;
+      largeDiamond.rotation = 45;
+      largeDiamond.color = "black";
+      largeDiamond.collider = "none";
+      largeDiamond.layer = 100000000;
+      largeDiamond.collider = "none";
+
+	  interniveau.utility.largeDiamond = largeDiamond;
+
+	  // Create the four smaller diamonds
+      let smallSize = size / 2.2;
+      let offsets = [
+        { x: 215, y: 0 },
+        { x: -215, y: 0 },
+        { x: 0, y: 215 },
+        { x: 0, y: -215 }
+      ];
+
+      
+      let words = ["yes", "youpe", "gabriel", "gerad", "abricot", "pomme", "poire", "banane", "fraise", "framboise", "mure", "cassis", "cerise", "peche", "abricot", "raisin", "melon", "pasteque", "ananas", "kiwi", "mangue", "papaye", "avocat", "citron", "orange", "mandarine", "pamplemousse", "grenade", "figue", "prune", "mirabelle", "reine-claude", "noix", "noisette", "amande", "pistache", "cacahuete", "chataigne", "noix de coco", "cacao", "vanille", "cannelle", "gingembre", "curcuma", "moutarde", "paprika", "piment", "poivre", "sel", "sucre", "miel", "sirop", "confiture", "compote", "gelée", "marmelade", "pate", "pate de fruit"];
+      
+
+      for (let offset of offsets) {
+        let smallDiamond = new Sprite(centerX + offset.x, centerY + offset.y);
+        smallDiamond.width = smallSize;
+        smallDiamond.height = smallSize;
+        smallDiamond.rotation = 45;
+        smallDiamond.layer = 100000000;
+        smallDiamond.color = "gray";
+        interniveau.utility.smallDiamond.push(smallDiamond);
+		let textrandom = random(words);
+        
+        let smallDiamondtext = new Sprite(centerX + offset.x, centerY + offset.y,0,0);
+        smallDiamondtext.text = textrandom;
+        smallDiamondtext.textSize = 50;
+        smallDiamondtext.textColor = "white";
+        
+        interniveau.utility.smallDiamondtext.push(smallDiamondtext);
+        
+
+      }
+  },
+
+  createtext: function (texte) {
+    if (interniveau.utility.textamelioration.length === 0) {
+      let textamelioration = new Sprite(player.sprite.x - windowWidth / 2 + 200, player.sprite.y - windowHeight / 2 + 300, 0, 0);
+      textamelioration.textSize = 40;
+      textamelioration.text = texte;
+      textamelioration.collider = "none";
+      textamelioration.textColor = "white";
+      textamelioration.layer = 100000000;
+      interniveau.utility.textamelioration.push(textamelioration);
+    } else {
+      let lastText = interniveau.utility.textamelioration[interniveau.utility.textamelioration.length - 1];
+      let textamelioration = new Sprite(lastText.x, lastText.y + 50, 0, 0);
+      textamelioration.textSize = 40;
+      textamelioration.text = texte;
+      textamelioration.collider = "none";
+      textamelioration.textColor = "white";
+      textamelioration.layer = 100000000;
+      interniveau.utility.textamelioration.push(textamelioration);
+    }
   
-  function setup() {
+  },
+}
+
+function setup() {
 	frameRate(60);
   
 	new Canvas(windowWidth, windowHeight);
@@ -926,14 +1326,16 @@ let player = {
   
 	backup.utility.functions.initialize();
   
-	iles.functions.create(5);
-  }
+	iles.functions.create();
+
+}
   
-  let backup = {
+let backup = {
 	utility: {
-	  collid: "none",
+	  collid: "static",
 	  opa: 0,
 	  menu: false,
+    situaworld: false,
   
 	  functions: {
 		initialize: function () {
@@ -1783,21 +2185,31 @@ let player = {
 		  back.buttonmenu.y = player.sprite.y + windowHeight / 2 - 100;
   
 		  menu = false;
+      situaworld = false;
   
 		  if (back.buttonmenu.mouse.pressed() && backup.utility.menu === true) {
 			opa = 0;
 			collid = "none";
 			backup.utility.menu = false;
 			back.buttonmenu.color = "skyblue";
+      world.timeScale = 1;
+      
 		  } else if (
+        
 			back.buttonmenu.mouse.pressed() &&
 			backup.utility.menu === false
 		  ) {
+        
 			backup.utility.menu = true;
 			opa = 1;
 			collid = "static";
 			back.buttonmenu.color = "blue";
+      world.timeScale = 0;
 		  }
+
+      if(backup.utility.menu === false){
+      collid="none"
+      }
   
 		  back.buttonmore.opacity = opa;
 		  back.buttonmore.collider = collid;
@@ -2084,11 +2496,13 @@ let player = {
 		},
 	  },
 	},
-  };
+};
   
-  function draw() {
+function draw() {
 	background("skyblue");
   
+
+  if( world.timeScale === 1){
 	if (timerseconde == 60) {
 	  timermillieseconde = 0;
 	  timerseconde = 0;
@@ -2102,6 +2516,8 @@ let player = {
 		time.text = "Time : " + timerminute + "min " + timerseconde + "s";
 	  }
 	}
+  
+
   
 	if (frameCount % 60 == 0 && arme.utility.recharge > 0) {
 	  arme.utility.recharge--;
@@ -2126,7 +2542,7 @@ let player = {
 	coordonneX = Math.floor(player.sprite.x);
 	coordonneY = Math.floor(player.sprite.y);
 	coordoneetext.text = "X:" + coordonneX + " , Y:" + coordonneY;
-	coordoneetext.x = player.sprite.x - windowWidth / 2 + 1000;
+	coordoneetext.x = player.sprite.x;
 	coordoneetext.y = player.sprite.y - windowHeight / 2 + 50;
   
 	camera.x = player.sprite.x;
@@ -2140,10 +2556,22 @@ let player = {
 	spawnRoutine.functions.runAll();
 	expblock.functions.runAll();
 	iles.functions.runAll();
+  interniveau.runAll();
+
+
+ 
   
 	backup.utility.functions.run();
   
 	player.sprite.layer = 100;
 	viseur.sprite.layer = 101;
+
+
   }
+  else{
+    backup.utility.functions.run();
+    interniveau.run();
+  }
+  
+}
   
