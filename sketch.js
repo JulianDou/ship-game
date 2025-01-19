@@ -2,6 +2,7 @@ let player = {
     stats: {
         bateau: {
             vie: 100,
+            vieMax: 100,
             vitesse: 2.5,
             maniabilite: 1.5,
             collision: 1.0,
@@ -32,12 +33,13 @@ let player = {
             ricochets: 0, // Nombre de fois qu'un projectile peut rebondir
         },
     },
-
+  
     utility: {
         sensMouvement: 1, // 0 = recule, 1 = arrêté, 2 = avance
         boutonMouvement: false,
         direction: 0, // En degrés
         vagues: [],
+        interniveaucheck: false,
         functions: {
             createVague: function (X, Y) {
                 let vague = new Sprite(X, Y);
@@ -51,7 +53,7 @@ let player = {
             },
         },
     },
-
+  
     functions: {
         runAll: function () {
             player.functions.inputs();
@@ -61,8 +63,9 @@ let player = {
             player.functions.fixRotation();
             player.functions.checkStats();
             player.functions.expstat();
+              player.functions.checktouch();
         },
-
+  
         inputs: function () {
             if (kb.pressing("w") && player.utility.boutonMouvement == false) {
                 player.utility.boutonMouvement = true;
@@ -81,7 +84,7 @@ let player = {
                 player.utility.boutonMouvement = false;
             }
         },
-
+  
         mouvement: function () {
             if (player.utility.sensMouvement == 1) {
                 player.sprite.speed = 0;
@@ -93,7 +96,7 @@ let player = {
                 }
             }
         },
-
+  
         rotation: function () {
             if (kb.pressing("a")) {
                 if (player.utility.sensMouvement == 1) {
@@ -119,7 +122,7 @@ let player = {
                 player.sprite.rotation = player.utility.direction;
             }
         },
-
+  
         vagues: function () {
             for (let i = 0; i < player.utility.vagues.length; i++) {
                 let vague = player.utility.vagues[i];
@@ -137,7 +140,7 @@ let player = {
                 );
             }
         },
-
+  
         fixRotation: function () {
             if (player.utility.direction > 360) {
                 player.utility.direction = 0;
@@ -145,7 +148,7 @@ let player = {
                 player.utility.direction = 360;
             }
         },
-
+  
         checkStats: function () {
             player.sprite.scale = player.stats.bateau.taille;
         },
@@ -154,10 +157,35 @@ let player = {
                 player.stats.bateau.experience = 0;
                 player.stats.bateau.niveau += 1;
                 player.stats.bateau.expMax = player.stats.bateau.expMax + 50;
+                interniveaucheck= true;
                 interniveau.initialize();
+                
             }
         },
-
+  
+        checktouch: function () {
+              for (let boulet of projectile.utility.projectiles.filter(b => b.tireur == "ennemi")) {
+                  if (player.sprite.overlaps(boulet)) {
+                      if (player.stats.bateau.vie >= boulet.vie) {
+                          player.stats.bateau.vie -= boulet.vie;
+                          boulet.vie = 0;
+                      } else {
+                          let vieavant = player.stats.bateau.vie;
+                          player.stats.bateau.vie -= boulet.vie;
+                          boulet.vie -= vieavant;
+                      }
+                      if (boulet.vie <= 0) {
+                          projectile.functions.createExplosion(boulet.x, boulet.y);
+                          boulet.remove();
+                          projectile.utility.projectiles.splice(
+                              projectile.utility.projectiles.indexOf(boulet),
+                              1
+                          );
+                      }
+                  }
+              }
+        },
+  
         initialize: function () {
             player.sprite = new Sprite(windowWidth / 2, windowHeight / 2);
             player.sprite.width = 64;
@@ -168,15 +196,17 @@ let player = {
             player.sprite.image.direction = 90;
             player.sprite.mass = 10;
             player.sprite.layer = 5;
+  
+            
         },
     },
-};
-
-let viseur = {
+  };
+  
+  let viseur = {
     utility: {
         direction: 0,
     },
-
+  
     functions: {
         runAll: function () {
             viseur.functions.rotation();
@@ -184,7 +214,7 @@ let viseur = {
             viseur.functions.mouvement();
             viseur.functions.checkAngle();
         },
-
+  
         fixRotation: function () {
             if (viseur.utility.direction > 360) {
                 viseur.utility.direction = 0;
@@ -192,25 +222,25 @@ let viseur = {
                 viseur.utility.direction = 360;
             }
         },
-
+  
         rotation: function () {
             viseur.sprite.rotateTowards(mouse, 1, 0);
             viseur.utility.direction = floor(
                 ((viseur.sprite.rotation % 360) + 360) % 360
             );
         },
-
+  
         mouvement: function () {
             viseur.sprite.x = player.sprite.x;
             viseur.sprite.y = player.sprite.y;
         },
-
+  
         checkAngle: function () {
             // Calculate relative angle between player and viseur
             let relativeAngle =
                 (viseur.utility.direction - player.utility.direction + 360) %
                 360;
-
+  
             // Determine if viseur is in the "left" or "right" zone of player
             if (relativeAngle >= 180 && relativeAngle <= 360) {
                 arme.utility.visee = "left"; // Left zone
@@ -218,7 +248,7 @@ let viseur = {
                 arme.utility.visee = "right"; // Right zone
             }
         },
-
+  
         initialize: function () {
             viseur.sprite = new Sprite(player.sprite.x, player.sprite.y);
             viseur.sprite.width = 64;
@@ -228,16 +258,16 @@ let viseur = {
             viseur.sprite.opacity = 0;
         },
     },
-};
-
-let arme = {
+  };
+  
+  let arme = {
     utility: {
         visee: "left", // left ou right
         recharge: 0,
         functions: {
             createProjectile: function () {
                 let boulet = new Sprite(player.sprite.x, player.sprite.y);
-
+  
                 boulet.source = "player";
                 boulet.origine = {
                     x: player.sprite.x,
@@ -248,7 +278,7 @@ let arme = {
                 boulet.rebonds = 0;
                 boulet.porteeMax = player.stats.arme.portee + random(-10, 10);
                 boulet.layer = 0;
-
+                boulet.tireur = "player";
                 boulet.diameter = 10;
                 boulet.collider = "none";
                 boulet.color = "black";
@@ -268,25 +298,25 @@ let arme = {
                         player.stats.arme.dispersion / 2
                     );
                 }
-
+  
                 if (player.stats.arme.projectiles > 1) {
                     boulet.speed = player.stats.arme.vitesse + random(-1, 1);
                 } else {
                     boulet.speed = player.stats.arme.vitesse;
                 }
-
+  
                 projectile.utility.projectiles.push(boulet);
             },
         },
     },
-
+  
     functions: {
         runAll: function () {
             arme.functions.rotation();
             arme.functions.mouvement();
             arme.functions.tir();
         },
-
+  
         rotation: function () {
             if (arme.utility.visee == "left") {
                 arme.sprite.rotation = player.utility.direction - 90;
@@ -294,12 +324,12 @@ let arme = {
                 arme.sprite.rotation = player.utility.direction + 90;
             }
         },
-
+  
         mouvement: function () {
             arme.sprite.x = player.sprite.x;
             arme.sprite.y = player.sprite.y;
         },
-
+  
         tir: function () {
             if (mouse.pressed()) {
                 if (arme.utility.recharge == 0) {
@@ -310,7 +340,7 @@ let arme = {
                 }
             }
         },
-
+  
         initialize: function () {
             arme.sprite = new Sprite(player.sprite.x, player.sprite.y);
             arme.sprite.width = 32;
@@ -319,19 +349,19 @@ let arme = {
             arme.sprite.collider = "none";
         },
     },
-};
-
-let projectile = {
+  };
+  
+  let projectile = {
     utility: {
         projectiles: [],
         explosions: [],
     },
-
+  
     functions: {
         runAll: function () {
             projectile.functions.update();
         },
-
+  
         explosion: function () {
             for (
                 let i = projectile.utility.explosions.length - 1;
@@ -347,7 +377,7 @@ let projectile = {
                 }
             }
         },
-
+  
         createExplosion: function (x, y) {
             let explosion = new Sprite(x, y);
             explosion.width = 64;
@@ -359,7 +389,7 @@ let projectile = {
             explosion.scale = player.stats.arme.taille;
             projectile.utility.explosions.push(explosion);
         },
-
+  
         checkDistance: function (boulet) {
             if ((boulet.source = "player")) {
                 if (
@@ -371,7 +401,7 @@ let projectile = {
                     ) >= boulet.porteeMax
                 ) {
                     player.utility.functions.createVague(boulet.x, boulet.y);
-
+  
                     boulet.remove();
                     projectile.utility.projectiles.splice(
                         projectile.utility.projectiles.indexOf(boulet),
@@ -380,7 +410,7 @@ let projectile = {
                 }
             }
         },
-
+  
         update: function () {
             for (let boulet of projectile.utility.projectiles) {
                 projectile.functions.checkDistance(boulet);
@@ -388,20 +418,20 @@ let projectile = {
             projectile.functions.explosion();
         },
     },
-};
-
-let reticule = {
+  };
+  
+  let reticule = {
     functions: {
         runAll: function () {
             reticule.functions.mouvement();
             reticule.functions.rotation();
         },
-
+  
         mouvement: function () {
             reticule.sprite.x = mouse.x;
             reticule.sprite.y = mouse.y;
         },
-
+  
         rotation: function () {
             reticule.sprite.rotateTowards(player.sprite, 1, 0);
             if (arme.utility.visee == "left") {
@@ -410,25 +440,25 @@ let reticule = {
                 reticule.sprite.image = loadImage("assets/retidroite.png");
             }
         },
-
+  
         initialize: function () {
             reticule.sprite = new Sprite(mouseX, mouseY);
             reticule.sprite.collider = "none";
             reticule.sprite.image = loadImage("assets/crosshair.png");
         },
     },
-};
-
-let expblock = {
+  };
+  
+  let expblock = {
     utility: {
         expblock: [],
     },
-
+  
     functions: {
         runAll: function () {
             expblock.functions.update();
         },
-
+  
         update: function () {
             for (let i = expblock.utility.expblock.length - 1; i >= 0; i--) {
                 let expBlock = expblock.utility.expblock[i];
@@ -437,24 +467,24 @@ let expblock = {
                     expBlock.remove();
                     expblock.utility.expblock.splice(i, 1);
                 }
-
+  
                 if (expBlock.timer === undefined) {
                     expBlock.timer = 0;
                 } else {
                     expBlock.timer++;
                 }
-
+  
                 let randomexp = random(300, 50000);
-
+  
                 if (expBlock.timer >= randomexp) {
                     // 5 à 10 secondes
-
+  
                     expBlock.remove();
                     expblock.utility.expblock.splice(i, 1);
                 }
             }
         },
-
+  
         dropEXP: function (amount, x, y) {
             while (amount > 0) {
                 let offsetX = random(-50, 50);
@@ -483,7 +513,7 @@ let expblock = {
                 }
             }
         },
-
+  
         createExpBlock: function (type, x, y) {
             let expBlock = new Sprite(x, y);
             expBlock.shape = "circle";
@@ -500,7 +530,7 @@ let expblock = {
             expblock.utility.expblock.push(expBlock);
         },
     },
-
+  
     types: {
         lightGreen: {
             color: "lightgreen",
@@ -521,353 +551,349 @@ let expblock = {
             image: "assets/exp3-2.png",
         },
     },
-};
-
-let ennemi = {
-    stats: {
-        bateau: {
-            vie: 40,
-            vitesse: 1.5,
-            maniabilite: 1,
-            collision: 1.0,
-            taille: 1.0, // Taille doit être la valeur qu'on donnera à scale
-            resistance: {
-                // Les résistances sont des pourcentages (1 = 100% de dégâts subis)
-                feu: 1.0,
-                degats: 1.0,
-            },
-            xpDrop: 390,
-        },
-        arme: {
-            degats: {
-                base: 10.0,
-                feu: 0.0, // La quantité de dégâts qu'inflige le feu chaque seconde
-                dureeFeu: 5000, // En millisecondes
-            },
-            recharge: 4000, // En millisecondes
-            vitesse: 5,
-            dispersion: 10, // En degrés
-            portee: 500, // En pixels
-            projectiles: 1,
-            taille: 1, // Taille doit être la valeur qu'on donnera à scale
-            penetration: 0, // Nombre de cibles que peut traverser un projectile
-            ricochets: 0, // Nombre de fois qu'un projectile peut rebondir
-        },
-    },
-
-    utility: {
-        mobcount: 0,
-    },
-
-    functions: {
-        spawn: function () {
-            player.sprite.y - windowHeight;
-            let mob = new Sprite(
-                random(
-                    player.sprite.x - windowWidth,
-                    player.sprite.x + windowWidth
-                ),
-                random(
-                    player.sprite.y - windowHeight,
-                    player.sprite.y + windowHeight
-                )
-            );
-            mob.stats = JSON.parse(JSON.stringify(ennemi.stats));
-            mob.sensRotation = floor(random(0, 2));
-            mob.distanceCible = floor(random(200, 400));
-            mob.touche = false;
-            mob.id = ennemi.utility.mobcount++;
-
-            // Create detection sprites
-            mob.detecmobright = new Sprite(mob.x + 100, mob.y + 35);
-            mob.detecmobright.width = 120;
-            mob.detecmobright.height = 35;
-            mob.detecmobright.collider = "none";
-            mob.detecmobright.color = "red";
-            mob.detecmobright.opacity = 0.5;
-            mob.detecmobright.offset.x = 60; // Offset for center of rotation
-            mob.detecmobright.offset.y = 17.5; // Offset for center of rotation
-
-            mob.detecmobleft = new Sprite(mob.x + 100, mob.y - 35);
-            mob.detecmobleft.width = 120;
-            mob.detecmobleft.height = 35;
-            mob.detecmobleft.collider = "none";
-            mob.detecmobleft.color = "green";
-            mob.detecmobleft.opacity = 0.5;
-            mob.detecmobleft.offset.x = 60; // Offset for center of rotation
-            mob.detecmobleft.offset.y = -17.5; // Offset for center of rotation
-
-            mob.functions = {
-                mouvement: function () {
-                    let distance = dist(
-                        mob.x,
-                        mob.y,
-                        player.sprite.x,
-                        player.sprite.y
-                    );
-                    if (distance > mob.distanceCible) {
-                        mob.rotateTowards(player.sprite, 0.1, 0);
-                        mob.direction = mob.rotation;
-                    } else {
-                        if (mob.sensRotation == 0) {
-                            if (distance < mob.distanceCible * 0.75) {
-                                mob.rotateTowards(player.sprite, 0.1, 120);
-                            } else {
-                                mob.rotateTowards(player.sprite, 0.1, 90);
-                            }
-                            mob.direction = mob.rotation;
-                        } else {
-                            if (distance < mob.distanceCible * 0.75) {
-                                mob.rotateTowards(player.sprite, 0.1, -120);
-                            } else {
-                                mob.rotateTowards(player.sprite, 0.1, -90);
-                            }
-                            mob.direction = mob.rotation;
-                        }
-                    }
-                    mob.speed = mob.stats.bateau.vitesse;
-
-                    // Update detection sprites position
-                    mob.detecmobright.x = mob.x;
-                    mob.detecmobright.y = mob.y;
-                    mob.detecmobright.rotation = mob.rotation;
-
-                    mob.detecmobleft.x = mob.x;
-                    mob.detecmobleft.y = mob.y;
-                    mob.detecmobleft.rotation = mob.rotation;
-                },
-
-                update: function () {
-                    mob.functions.mouvement();
-
-                    if (frameCount % 15 == 0) {
-                        spawnRoutine.utility.functions.createVague(
-                            mob.x,
-                            mob.y
-                        );
-                    }
-
-                    if (mob.stats.bateau.vie <= 0) {
-                        mob.functions.die();
-                    }
-
-                    mob.functions.checkHit();
-                    //mob.functions.checkcollision();
-                },
-
-                checkHit: function () {
-                    let check = false;
-                    for (let boulet of projectile.utility.projectiles) {
-                        if (
-                            mob.overlaps(boulet) ||
-                            iles.utility.iles.some((ile) =>
-                                ile.some((sprite) => sprite.overlaps(boulet))
-                            )
-                        ) {
-                            check = true;
-                            if (!mob.touche) {
-                                if (mob.stats.bateau.vie >= boulet.vie) {
-                                    mob.stats.bateau.vie -= boulet.vie;
-                                    boulet.vie = 0;
-                                } else {
-                                    let vieavant = mob.stats.bateau.vie;
-                                    mob.stats.bateau.vie -= degats;
-                                    boulet.vie -= vieavant;
-                                }
-                                if (boulet.vie <= 0) {
-                                    projectile.functions.createExplosion(
-                                        boulet.x,
-                                        boulet.y
-                                    );
-                                    boulet.remove();
-                                    projectile.utility.projectiles.splice(
-                                        projectile.utility.projectiles.indexOf(
-                                            boulet
-                                        ),
-                                        1
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    if (check) {
-                        mob.touche = true;
-                    } else {
-                        mob.touche = false;
-                    }
-                },
-
-                die: function () {
-                    expblock.functions.dropEXP(
-                        mob.stats.bateau.xpDrop,
-                        mob.x,
-                        mob.y
-                    );
-
-                    spawnRoutine.utility.functions.killMob(mob.id);
-                },
-
-                checkcollision: function () {
-                    for (let ile of window.iles.utility.iles) {
-                        for (let sprite of ile) {
-                            if (mob.detecmobright.overlaps(sprite)) {
-                                mob.rotation += 45;
-                            } else if (mob.detecmobleft.overlaps(sprite)) {
-                                mob.rotation -= 45;
-                            }
-                        }
-                    }
-                },
-
-                mouvement: function () {
-                    let distance = dist(
-                        mob.x,
-                        mob.y,
-                        player.sprite.x,
-                        player.sprite.y
-                    );
-                    if (distance > mob.distanceCible) {
-                        mob.rotateTowards(player.sprite, 0.1, 0);
-                        mob.direction = mob.rotation;
-                    } else {
-                        if (mob.sensRotation == 0) {
-                            if (distance < mob.distanceCible * 0.75) {
-                                mob.rotateTowards(player.sprite, 0.1, 120);
-                            } else {
-                                mob.rotateTowards(player.sprite, 0.1, 90);
-                            }
-                            mob.direction = mob.rotation;
-                        } else {
-                            if (distance < mob.distanceCible * 0.75) {
-                                mob.rotateTowards(player.sprite, 0.1, -120);
-                            } else {
-                                mob.rotateTowards(player.sprite, 0.1, -90);
-                            }
-                            mob.direction = mob.rotation;
-                        }
-                    }
-                    mob.speed = mob.stats.bateau.vitesse;
-
-                    // Update detection sprites position
-                    mob.detecmobright.x = mob.x;
-                    mob.detecmobright.y = mob.y;
-                    mob.detecmobright.rotation = mob.rotation;
-
-                    mob.detecmobleft.x = mob.x;
-                    mob.detecmobleft.y = mob.y;
-                    mob.detecmobleft.rotation = mob.rotation;
-                },
-
-                update: function () {
-                    mob.functions.mouvement();
-
-                    if (frameCount % 15 == 0) {
-                        spawnRoutine.utility.functions.createVague(
-                            mob.x,
-                            mob.y
-                        );
-                    }
-
-                    if (mob.stats.bateau.vie <= 0) {
-                        mob.functions.die();
-                    }
-
-                    mob.functions.checkHit();
-                    mob.functions.checkcollision();
-                },
-
-                checkHit: function () {
-                    let check = false;
-                    for (let boulet of projectile.utility.projectiles) {
-                        if (mob.overlaps(boulet)) {
-                            check = true;
-                            if (!mob.touche) {
-                                if (mob.stats.bateau.vie >= boulet.vie) {
-                                    mob.stats.bateau.vie -= boulet.vie;
-                                    boulet.vie = 0;
-                                } else {
-                                    let vieavant = mob.stats.bateau.vie;
-                                    mob.stats.bateau.vie -= degats;
-                                    boulet.vie -= vieavant;
-                                }
-                                if (boulet.vie <= 0) {
-                                    projectile.functions.createExplosion(
-                                        boulet.x,
-                                        boulet.y
-                                    );
-                                    boulet.remove();
-                                    projectile.utility.projectiles.splice(
-                                        projectile.utility.projectiles.indexOf(
-                                            boulet
-                                        ),
-                                        1
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    if (check) {
-                        mob.touche = true;
-                    } else {
-                        mob.touche = false;
-                    }
-                },
-
-                die: function () {
-                    expblock.functions.dropEXP(
-                        mob.stats.bateau.xpDrop,
-                        mob.x,
-                        mob.y
-                    );
-
-                    spawnRoutine.utility.functions.killMob(mob.id);
-                },
-
-                checkcollision: function () {
-                    for (let ile of iles.utility.iles) {
-                        for (let sprite of ile) {
-                            if (mob.detecmobright.overlaps(sprite)) {
-                                setTimeout(() => {
-                                    mob.rotation -= 45;
-                                    mob.x -= mob.stats.bateau.vitesse;
-                                    mob.y -= mob.stats.bateau.vitesse;
-                                }, 5000);
-                            } else if (mob.detecmobleft.overlaps(sprite)) {
-                                setTimeout(() => {
-                                    mob.rotation += 45;
-                                    mob.x -= mob.stats.bateau.vitesse;
-                                    mob.y -= mob.stats.bateau.vitesse;
-                                }, 5000);
-                            } else if (
-                                mob.detecmobright.overlaps(sprite) &&
-                                mob.detecmobleft.overlaps(sprite)
-                            ) {
-                                setTimeout(() => {
-                                    mob.x -= mob.stats.bateau.vitesse;
-                                    mob.y -= mob.stats.bateau.vitesse;
-                                }, 5000);
-                            }
-                        }
-                    }
-                },
-            };
-
-            mob.width = 64;
-            mob.height = 32;
-            mob.scale = 1.2;
-            mob.collider = "dinamic";
-            mob.drag = 10;
-            mob.rotationDrag = 1;
-            mob.mass = 1;
-            mob.image = loadImage("assets/ennemi.png");
-            mob.layer = 1;
-
-            spawnRoutine.utility.ennemis.push(mob);
-        },
-    },
-};
-
-let spawnRoutine = {
+  };
+  
+  let ennemi = {
+      stats: {
+          type0: {
+              bateau: {
+                  name: "normal",
+                  image: "assets/ennemi-moyen.png",
+                  color: "red",
+                  vie: 20,
+                  vitesse: 1,
+                  maniabilite: 1,
+                  collision: 1.0,
+                  taille: 1.8,
+                  resistance: {
+                      feu: 1.0,
+                      degats: 1.0,
+                  },
+                  xpDrop: 50,
+              },
+              arme: {
+                  degats: {
+                      base: 10.0,
+                      feu: 0.0,
+                      dureeFeu: 0,
+                  },
+                  recharge: 3,
+                  vitesse: 5,
+                  precision: 30,
+                  dispersion: 0,
+                  portee: 500,
+                  projectiles: 1,
+                  taille: 1,
+                  penetration: 0,
+                  ricochets: 0,
+              },
+          },
+          type1: {
+              bateau: {
+                  name: "leger",
+                  image: "assets/ennemi-leger.png",
+                  color: "blue",
+                  vie: 10,
+                  vitesse: 2,
+                  maniabilite: 1.5,
+                  collision: 1.0,
+                  taille: 1.5,
+                  resistance: {
+                      feu: 1.0,
+                      degats: 0.8,
+                  },
+                  xpDrop: 100,
+              },
+              arme: {
+                  degats: {
+                      base: 5.0,
+                      feu: 0.0,
+                      dureeFeu: 0,
+                  },
+                  recharge: 1,
+                  vitesse: 5,
+                  precision: 30,
+                  dispersion: 0,
+                  portee: 500,
+                  projectiles: 1,
+                  taille: 1,
+                  penetration: 0,
+                  ricochets: 0,
+              },
+          },
+          type2: {
+              bateau: {
+                  name: "lourd",
+                  image: "assets/ennemi-lourd.png",
+                  color: "yellow",
+                  vie: 40,
+                  vitesse: 0.8,
+                  maniabilite: 0.8,
+                  collision: 1.0,
+                  taille: 2.5,
+                  resistance: {
+                      feu: 0.8,
+                      degats: 0.9,
+                  },
+                  xpDrop: 150,
+              },
+              arme: {
+                  degats: {
+                      base: 20.0,
+                      feu: 0.0,
+                      dureeFeu: 0,
+                  },
+                  recharge: 8,
+                  vitesse: 6,
+                  precision: 20,
+                  dispersion: 5,
+                  portee: 600,
+                  projectiles: 1,
+                  taille: 1.5,
+                  penetration: 1,
+                  ricochets: 1,
+              },
+          },
+          type3: {
+              bateau: {
+                  name: "barque",
+                  image: "assets/ennemi-barque.png",
+                  color: "purple",
+                  vie: 20,
+                  vitesse: 1.8,
+                  maniabilite: 1.5,
+                  collision: 1.0,
+                  taille: 1,
+                  resistance: {
+                      feu: 0.9,
+                      degats: 0.95,
+                  },
+                  xpDrop: 150,
+              },
+              arme: {
+                  degats: {
+                      base: 5.0,
+                      feu: 0.0,
+                      dureeFeu: 0,
+                  },
+                  recharge: 4,
+                  vitesse: 5.5,
+                  precision: 20,
+                  dispersion: 200,
+                  portee: 550,
+                  projectiles: 5,
+                  taille: 0.8,
+                  penetration: 0,
+                  ricochets: 0,
+              },
+          },
+      },
+  
+      utility: {
+          mobcount: 0,
+      },
+  
+      functions: {
+          spawn: function () {
+              let randomValue = random(0, 100);
+              let typeIndex;
+              if (randomValue < 80) {
+                  typeIndex = 0;
+              } else if (randomValue < 90) {
+                  typeIndex = 1;
+              } else if (randomValue < 97) {
+                  typeIndex = 2;
+              } else {
+                  typeIndex = 3;
+              }
+              let typeKey = `type${typeIndex}`;
+              let mobStats = JSON.parse(JSON.stringify(ennemi.stats[typeKey]));
+  
+              let mob = new Sprite(
+                  random(player.sprite.x - windowWidth, player.sprite.x + windowWidth),
+                  random(player.sprite.y - windowHeight, player.sprite.y + windowHeight)
+              );
+  
+              mob.stats = mobStats;
+              mob.sensRotation = floor(random(0, 2));
+              mob.distanceCible = floor(random(200, 400));
+              mob.touche = false;
+              mob.id = ennemi.utility.mobcount++;
+  
+              mob.detecmobright = new Sprite(mob.x + 100, mob.y + 35);
+              mob.detecmobright.width = 120;
+              mob.detecmobright.height = 35;
+              mob.detecmobright.collider = "none";
+              mob.detecmobright.color = "red";
+              mob.detecmobright.opacity = 0;
+              mob.detecmobright.offset.x = 60;
+              mob.detecmobright.offset.y = 17.5;
+  
+              mob.detecmobleft = new Sprite(mob.x + 100, mob.y - 35);
+              mob.detecmobleft.width = 120;
+              mob.detecmobleft.height = 35;
+              mob.detecmobleft.collider = "none";
+              mob.detecmobleft.color = "green";
+              mob.detecmobleft.opacity = 0;
+              mob.detecmobleft.offset.x = 60;
+              mob.detecmobleft.offset.y = -17.5;
+  
+              mob.functions = {
+                  mouvement: function () {
+                      let distance = dist(mob.x, mob.y, player.sprite.x, player.sprite.y);
+                      if (distance > mob.distanceCible) {
+                          mob.rotateTowards(player.sprite, 0.1, 0);
+                          mob.direction = mob.rotation;
+                      } else {
+                          if (mob.sensRotation == 0) {
+                              if (distance < mob.distanceCible * 0.75) {
+                                  mob.rotateTowards(player.sprite, 0.1, 120);
+                              } else {
+                                  mob.rotateTowards(player.sprite, 0.1, 90);
+                              }
+                              mob.direction = mob.rotation;
+                          } else {
+                              if (distance < mob.distanceCible * 0.75) {
+                                  mob.rotateTowards(player.sprite, 0.1, -120);
+                              } else {
+                                  mob.rotateTowards(player.sprite, 0.1, -90);
+                              }
+                              mob.direction = mob.rotation;
+                          }
+                      }
+                      mob.speed = mob.stats.bateau.vitesse;
+  
+                      mob.detecmobright.x = mob.x;
+                      mob.detecmobright.y = mob.y;
+                      mob.detecmobright.rotation = mob.rotation;
+  
+                      mob.detecmobleft.x = mob.x;
+                      mob.detecmobleft.y = mob.y;
+                      mob.detecmobleft.rotation = mob.rotation;
+                  },
+  
+                  update: function () {
+                      mob.functions.mouvement();
+  
+                      if (frameCount % 15 == 0) {
+                          spawnRoutine.utility.functions.createVague(mob.x, mob.y);
+                      }
+  
+                      if (mob.stats.bateau.vie <= 0) {
+                          mob.functions.die();
+                      }
+  
+                      mob.functions.checkHit();
+                      mob.functions.tir();
+                      mob.functions.checkcollision();
+                  },
+  
+                  checkHit: function () {
+                      let check = false;
+                      for (let boulet of projectile.utility.projectiles.filter(b => b.tireur == "player")) {
+                          if (mob.overlaps(boulet)) {
+                              check = true;
+                              if (!mob.touche) {
+                                  if (mob.stats.bateau.vie >= boulet.vie) {
+                                      mob.stats.bateau.vie -= boulet.vie;
+                                      boulet.vie = 0;
+                                  } else {
+                                      let vieavant = mob.stats.bateau.vie;
+                                      mob.stats.bateau.vie -= boulet.vie;
+                                      boulet.vie -= vieavant;
+                                  }
+                                  if (boulet.vie <= 0) {
+                                      projectile.functions.createExplosion(boulet.x, boulet.y);
+                                      boulet.remove();
+                                      projectile.utility.projectiles.splice(
+                                          projectile.utility.projectiles.indexOf(boulet),
+                                          1
+                                      );
+                                  }
+                              }
+                          }
+                      }
+                      if (check) {
+                          mob.touche = true;
+                      } else {
+                          mob.touche = false;
+                      }
+                  },
+  
+                  die: function () {
+                      expblock.functions.dropEXP(mob.stats.bateau.xpDrop, mob.x, mob.y);
+                      spawnRoutine.utility.functions.killMob(mob.id);
+                  },
+  
+                  checkcollision: function () {
+                      for (let ile of iles.utility.iles) {
+                          for (let sprite of ile) {
+                              if (mob.detecmobright.overlaps(sprite)) {
+                                  mob.rotation += 45;
+                              } else if (mob.detecmobleft.overlaps(sprite)) {
+                                  mob.rotation -= 45;
+                              }
+                          }
+                      }
+                  },
+  
+                  tir: function () {
+                      let distance = dist(mob.x, mob.y, player.sprite.x, player.sprite.y);
+                      if ((frameCount % (60 * mob.stats.arme.recharge)) == 0 && distance < mob.stats.arme.portee) {
+                          for (let i = 0; i < mob.stats.arme.projectiles; i++) {
+                              let boulet = new Sprite(mob.x, mob.y);
+                              boulet.source = "ennemi";
+                              boulet.origine = {
+                                  x: mob.x,
+                                  y: mob.y,
+                              };
+                              boulet.vie = mob.stats.arme.degats.base;
+                              boulet.ennemisPerces = mob.stats.arme.penetration;
+                              boulet.rebonds = mob.stats.arme.ricochets;
+                              boulet.tireur = "ennemi";
+                              boulet.porteeMax = mob.stats.arme.portee + random(-10, 10);
+                              boulet.layer = 1;
+                              boulet.collider = "none";
+                              boulet.color = "black";
+                              boulet.image = loadImage("assets/boulet.png");
+                              boulet.image.scale = mob.stats.arme.taille / 5;
+                              boulet.scale = mob.stats.arme.taille;
+                              boulet.projectiles = mob.stats.arme.projectiles;
+                              boulet.degatsbase = mob.stats.arme.degats.base;
+                              boulet.recharge = mob.stats.arme.recharge;
+                              boulet.vitesse = mob.stats.arme.vitesse;
+  
+  
+                              boulet.direction = mob.angleTo(player.sprite);
+                              boulet.direction += random(-mob.stats.arme.dispersion / 2, mob.stats.arme.dispersion / 2);
+                              boulet.direction += random(-mob.stats.arme.precision, mob.stats.arme.precision);
+                              boulet.speed = mob.stats.arme.vitesse;
+                              projectile.utility.projectiles.push(boulet);
+                          }
+                      }
+                      }
+                  }
+              
+  
+              mob.width = 64;
+              mob.height = 32;
+              mob.collider = "dynamic";
+              mob.drag = 10;
+              mob.rotationDrag = 1;
+              mob.mass = 1;
+              mob.scale = mob.stats.bateau.taille;
+              mob.speed = mob.stats.bateau.vitesse;
+  
+             mob.image = mob.stats.bateau.image;
+             mob.color = mob.stats.bateau.color;
+              mob.layer = 1;
+  
+              spawnRoutine.utility.ennemis.push(mob);
+          },
+      },
+  };
+  
+  let spawnRoutine = {
     utility: {
         ennemis: [],
         intervalle: 2,
@@ -885,7 +911,7 @@ let spawnRoutine = {
                 vague.scale = 0.8;
                 spawnRoutine.utility.vagues.push(vague);
             },
-
+  
             killMob: function (id) {
                 let indexToRemove = -1;
                 for (let i = 0; i < spawnRoutine.utility.ennemis.length; i++) {
@@ -903,7 +929,7 @@ let spawnRoutine = {
             },
         },
     },
-
+  
     functions: {
         runAll: function () {
             spawnRoutine.functions.spawn();
@@ -911,7 +937,7 @@ let spawnRoutine = {
             spawnRoutine.functions.vagues();
             spawnRoutine.functions.removeEnnemi();
         },
-
+  
         spawn: function () {
             if (frameCount % (spawnRoutine.utility.intervalle * 60) == 0) {
                 if (
@@ -922,13 +948,23 @@ let spawnRoutine = {
                 }
             }
         },
-
+  
+        
+  
         update: function () {
             for (let mob of spawnRoutine.utility.ennemis) {
                 mob.functions.update();
             }
+  
+            if (timerminute % 3 === 0 && timerminute !== 0 && timerseconde === 0 && !spawnRoutine.utility.increased) {
+              spawnRoutine.utility.ennemisMax += 2;
+              spawnRoutine.utility.increased = true;
+              
+            } else if (timerseconde !== 0) {
+              spawnRoutine.utility.increased = false;
+            }
         },
-
+  
         vagues: function () {
             for (let i = 0; i < spawnRoutine.utility.vagues.length; i++) {
                 let vague = spawnRoutine.utility.vagues[i];
@@ -940,7 +976,7 @@ let spawnRoutine = {
                 }
             }
         },
-
+  
         removeEnnemi: function () {
             for (let i = spawnRoutine.utility.ennemis.length - 1; i >= 0; i--) {
                 let ennemi = spawnRoutine.utility.ennemis[i];
@@ -959,20 +995,20 @@ let spawnRoutine = {
             }
         },
     },
-};
-
-let iles = {
+  };
+  
+  let iles = {
     utility: {
         iles: [],
         timerseconde: 0,
     },
-
+  
     functions: {
         runAll: function () {
             iles.functions.removeile();
             iles.functions.checkcollision();
         },
-
+  
         create: function () {
             let numbermaxiles = 5;
             while (iles.utility.iles.length <= numbermaxiles) {
@@ -990,11 +1026,11 @@ let iles = {
                     validPosition = iles.functions.isValidPosition(x, y);
                 }
                 let ile = iles.functions.createIle(x, y);
-
+  
                 iles.utility.iles.push(ile);
             }
         },
-
+  
         isValidPosition: function (x, y) {
             let minDistance = 500; // Minimum distance between islands
             for (let ile of iles.utility.iles) {
@@ -1006,7 +1042,7 @@ let iles = {
             }
             return true;
         },
-
+  
         createIle: function (x, y) {
             let ile = [];
             let directions = [
@@ -1015,12 +1051,12 @@ let iles = {
                 { x: 0, y: 64 },
                 { x: 0, y: -64 },
             ];
-
+  
             let currentX = x;
             let currentY = y;
-
+  
             let numberIle = floor(random(15, 40));
-
+  
             for (let i = 0; i < numberIle; i++) {
                 let sprite = new Sprite(currentX, currentY);
                 sprite.width = 64;
@@ -1030,12 +1066,12 @@ let iles = {
                 sprite.color = "green";
                 sprite.stroke = "0";
                 ile.push(sprite);
-
+  
                 let direction = random(directions);
                 currentX += direction.x;
                 currentY += direction.y;
             }
-
+  
             for (let sprite of ile) {
                 let surroundingSprites = 0;
                 for (let direction of directions) {
@@ -1051,12 +1087,12 @@ let iles = {
                         }
                     }
                 }
-
+  
                 let hasTop = false;
                 let hasRight = false;
                 let hasBottom = false;
                 let hasLeft = false;
-
+  
                 for (let direction of directions) {
                     let neighborX = sprite.x + direction.x;
                     let neighborY = sprite.y + direction.y;
@@ -1076,7 +1112,7 @@ let iles = {
                         }
                     }
                 }
-
+  
                 if (hasTop && hasRight && hasBottom && hasLeft) {
                     sprite.image = loadImage("assets/ile-0.png");
                 } else if (
@@ -1086,7 +1122,7 @@ let iles = {
                     (hasRight && hasBottom && hasLeft)
                 ) {
                     sprite.image = loadImage("assets/ile-1.png");
-
+  
                     if (hasTop && hasRight && hasBottom) {
                         sprite.rotation = 90;
                     }
@@ -1136,10 +1172,10 @@ let iles = {
                     sprite.image = loadImage("assets/ile-4.png");
                 }
             }
-
+  
             return ile;
         },
-
+  
         removeile: function () {
             for (let i = iles.utility.iles.length - 1; i >= 0; i--) {
                 let ile = iles.utility.iles[i];
@@ -1168,7 +1204,7 @@ let iles = {
                 }
             }
         },
-
+  
         checkcollision: function () {
             for (let boulet of projectile.utility.projectiles) {
                 if (
@@ -1186,9 +1222,9 @@ let iles = {
             }
         },
     },
-};
-
-let interniveau = {
+  };
+  
+  let interniveau = {
     utility: {
         smallDiamond: [],
         largeDiamond: null,
@@ -1197,7 +1233,7 @@ let interniveau = {
         buttonpast: null,
         textamelioration: [],
     },
-
+  
     runAll: function () {
         for (let text of interniveau.utility.textamelioration) {
             text.x = player.sprite.x - windowWidth / 2 + 200;
@@ -1208,7 +1244,7 @@ let interniveau = {
                 interniveau.utility.textamelioration.indexOf(text) * 50;
         }
     },
-
+  
     run: function () {
         for (let text of interniveau.utility.textamelioration) {
             text.x = player.sprite.x - windowWidth / 2 + 200;
@@ -1218,7 +1254,7 @@ let interniveau = {
                 300 +
                 interniveau.utility.textamelioration.indexOf(text) * 50;
         }
-
+  
         for (let i = 0; i < interniveau.utility.smallDiamond.length; i++) {
             if (interniveau.utility.smallDiamond[i].mouse.pressed()) {
                 console.log(interniveau.utility.smallDiamondtext[i].text);
@@ -1239,27 +1275,27 @@ let interniveau = {
                 break;
             }
         }
-
-        if (interniveau.utility.buttonpast.mouse.pressed()) {
-            interniveau.utility.smallDiamond.forEach((diamond) =>
-                diamond.remove()
-            );
-            interniveau.utility.largeDiamond.remove();
-            interniveau.utility.smallDiamondtext.forEach((text) =>
-                text.remove()
-            );
-            interniveau.utility.ecran.remove();
-            interniveau.utility.buttonpast.remove();
-            world.timeScale = 1;
-        }
+      if (interniveau.utility.buttonpast && interniveau.utility.buttonpast.mouse.pressed()) {
+          interniveau.utility.smallDiamond.forEach((diamond) =>
+            diamond.remove()
+          );
+          interniveau.utility.largeDiamond.remove();
+          interniveau.utility.smallDiamondtext.forEach((text) =>
+            text.remove()
+          );
+          interniveau.utility.ecran.remove();
+          interniveau.utility.buttonpast.remove();
+          world.timeScale = 1;
+          player.stats.bateau.vie = player.stats.bateau.vieMax;
+      }
     },
-
+  
     initialize: function () {
         world.timeScale = 0;
         let centerX = player.sprite.x;
         let centerY = player.sprite.y;
         let size = 600; // Size of the large diamond
-
+  
         let ecran = new Sprite(centerX, centerY, 0, 0);
         ecran.width = windowWidth;
         ecran.height = windowHeight;
@@ -1268,23 +1304,23 @@ let interniveau = {
         ecran.collider = "none";
         ecran.layer = 100000000;
         interniveau.utility.ecran = ecran;
-
+  
         let buttonpast = new Sprite(
             player.sprite.x + windowWidth / 2 - 200,
             player.sprite.y + windowHeight / 2 - 100,
-            100,
+            300,
             500
         );
-        buttonpast.width = 200;
+        buttonpast.width = 350;
         buttonpast.height = 50;
         buttonpast.color = "gray";
-
+  
         buttonpast.layer = 100000000;
-        buttonpast.text = "Passer";
+        buttonpast.text = "Regagnez vos PV";
         buttonpast.textSize = 40;
         buttonpast.textColor = "white";
         interniveau.utility.buttonpast = buttonpast;
-
+  
         // Create the large diamond
         let largeDiamond = new Sprite(centerX, centerY);
         largeDiamond.width = size;
@@ -1294,9 +1330,9 @@ let interniveau = {
         largeDiamond.collider = "none";
         largeDiamond.layer = 100000000;
         largeDiamond.collider = "none";
-
+  
         interniveau.utility.largeDiamond = largeDiamond;
-
+  
         // Create the four smaller diamonds
         let smallSize = size / 2.2;
         let offsets = [
@@ -1305,7 +1341,7 @@ let interniveau = {
             { x: 0, y: 215 },
             { x: 0, y: -215 },
         ];
-
+  
         let words = [
             "yes",
             "youpe",
@@ -1366,7 +1402,7 @@ let interniveau = {
             "pate",
             "pate de fruit",
         ];
-
+  
         for (let offset of offsets) {
             let smallDiamond = new Sprite(
                 centerX + offset.x,
@@ -1379,7 +1415,7 @@ let interniveau = {
             smallDiamond.color = "gray";
             interniveau.utility.smallDiamond.push(smallDiamond);
             let textrandom = random(words);
-
+  
             let smallDiamondtext = new Sprite(
                 centerX + offset.x,
                 centerY + offset.y,
@@ -1389,11 +1425,11 @@ let interniveau = {
             smallDiamondtext.text = textrandom;
             smallDiamondtext.textSize = 50;
             smallDiamondtext.textColor = "white";
-
+  
             interniveau.utility.smallDiamondtext.push(smallDiamondtext);
         }
     },
-
+  
     createtext: function (texte) {
         if (interniveau.utility.textamelioration.length === 0) {
             let textamelioration = new Sprite(
@@ -1427,26 +1463,162 @@ let interniveau = {
             interniveau.utility.textamelioration.push(textamelioration);
         }
     },
-};
-
-function setup() {
+  };
+  
+  let vieblock = {
+      utility: {
+          vieblock: [],
+      },
+  
+      functions: {
+          runAll: function () {
+              vieblock.functions.update();
+          },
+  
+          update: function () {
+              for (let i = vieblock.utility.vieblock.length - 1; i >= 0; i--) {
+                  let vieBlock = vieblock.utility.vieblock[i];
+                  if (player.sprite.overlaps(vieBlock)) {
+                      if (player.stats.bateau.vie + vieBlock.vie > player.stats.bateau.vieMax) {
+                          player.stats.bateau.vie = player.stats.bateau.vieMax;
+                          vieBlock.remove();
+                      vieblock.utility.vieblock.splice(i, 1);
+                      } else{
+                      player.stats.bateau.vie += vieBlock.vie;
+                      vieBlock.remove();
+                      vieblock.utility.vieblock.splice(i, 1);
+                  }
+              }
+              }
+  
+              if (vieblock.utility.vieblock.length < 5) {
+                  if (frameCount % (5 * 60) == 0) {
+                      vieblock.functions.spawn();
+                  }
+              }
+  
+              vieblock.functions.removevieblock();
+  
+          },
+  
+          isValidPosition: function (x, y) {
+              let minDistance = 100; // Minimum distance between vie blocks
+              for (let vieBlock of vieblock.utility.vieblock) {
+                  if (Math.hypot(x - vieBlock.x, y - vieBlock.y) < minDistance) {
+                      return false;
+                  }
+              }
+              for (let ile of iles.utility.iles) {
+                  for (let sprite of ile) {
+                      if (Math.hypot(x - sprite.x, y - sprite.y) < minDistance) {
+                          return false;
+                      }
+                  }
+              }
+              
+              return true;
+          },
+  
+          spawn: function () {
+              let x, y;
+              do {
+                  x = random(
+                      player.sprite.x - windowWidth - 500,
+                      player.sprite.x + windowWidth + 50
+                  );
+                  y = random(
+                      player.sprite.y - windowHeight - 500,
+                      player.sprite.y + windowHeight + 500
+                  );
+              } while (!vieblock.functions.isValidPosition(x, y));
+  
+              let randomValue = random(0, 100);
+              let type;
+              if (randomValue < 85) {
+                  type = vieblock.types.lightGreen;
+              } else if (randomValue < 95) {
+                  type = vieblock.types.green;
+              } else {
+                  type = vieblock.types.darkGreen;
+              }
+              vieblock.functions.createVieBlock(type, x, y);
+          },
+  
+  
+          createVieBlock: function (type, x, y) {
+              let vieBlock = new Sprite(x, y);
+              vieBlock.shape = "circle";
+              vieBlock.collider = "static";
+              vieBlock.color = type.color;
+              vieBlock.scale = type.scale;
+              vieBlock.vie = type.vie;
+              vieBlock.overlaps = false;
+              vieBlock.collider = "none";
+              vieBlock.layer = -1;
+              if (type.image) {
+                  vieBlock.image = loadImage(type.image);
+              }
+              vieblock.utility.vieblock.push(vieBlock);
+          },
+  
+          removevieblock: function () {
+              for (let i = vieblock.utility.vieblock.length - 1; i >= 0; i--) {
+                  let vieBlock = vieblock.utility.vieblock[i];
+                  let distance = dist(
+                      vieBlock.x,
+                      vieBlock.y,
+                      player.sprite.x,
+                      player.sprite.y
+                  );
+                  if (distance > max(windowWidth * 1.5, windowHeight * 1.5)) {
+                      vieBlock.remove();
+                      vieblock.utility.vieblock.splice(i, 1);
+                  }
+              }
+          }
+      },
+  
+      types: {
+          lightGreen: {
+              color: "lightgreen",
+              scale: 1,
+              vie: 10,
+              image: "assets/vie-1.png",
+          },
+          green: {
+              color: "green",
+              scale: 1.15,
+              vie: 50,
+              image: "assets/vie-2.png",
+          },
+          darkGreen: {
+              color: "cyan",
+              scale: 1.3,
+              vie: 100,
+              image: "assets/vie-3.png",
+          },
+      },
+  
+  };
+  
+  function setup() {
     frameRate(60);
-
+  
     new Canvas(windowWidth, windowHeight);
     displayMode("centered", "pixelated", 8);
     background("skyblue");
-
+  
     timermillieseconde = 0;
     timerseconde = 0;
     timerminute = 0;
-
+  
     //start..........................
-
+  
     player.functions.initialize();
     viseur.functions.initialize();
     arme.functions.initialize();
     reticule.functions.initialize();
-
+  
     time = new Sprite(
         player.sprite.x - windowWidth / 2 + 180,
         player.sprite.y - windowHeight / 2 + 50,
@@ -1458,7 +1630,7 @@ function setup() {
     time.collider = "none";
     time.textColor = "white";
     time.layer = 1000000;
-
+  
     reload = new Sprite(
         player.sprite.x - windowWidth / 2 + 180,
         player.sprite.y - windowHeight / 2 + 100,
@@ -1470,7 +1642,7 @@ function setup() {
     reload.collider = "none";
     reload.textColor = "white";
     reload.layer = 1000000;
-
+  
     niveautext = new Sprite(
         player.sprite.x - windowWidth / 2 + 180,
         player.sprite.y - windowHeight / 2 + 150,
@@ -1482,7 +1654,7 @@ function setup() {
     niveautext.collider = "none";
     niveautext.textColor = "white";
     niveautext.layer = 1000000;
-
+  
     exptext = new Sprite(
         player.sprite.x - windowWidth / 2 + 180,
         player.sprite.y - windowHeight / 2 + 200,
@@ -1494,10 +1666,22 @@ function setup() {
     exptext.collider = "none";
     exptext.textColor = "white";
     exptext.layer = 1000000;
-
+  
+    textvie = new Sprite( 
+          player.sprite.x + windowWidth / 2 - 180,
+          player.sprite.y - windowHeight / 2 + 50,
+          0,
+          0
+      );
+      textvie.textSize = 40;
+      textvie.text = "Vie : " + player.stats.bateau.vie;
+      textvie.collider = "none";
+      textvie.textColor = "white";
+      textvie.layer = 1000000;
+  
     coordonneX = player.sprite.x;
     coordonneY = player.sprite.y;
-
+  
     coordoneetext = new Sprite(
         player.sprite.x - windowWidth / 2 + 1000,
         player.sprite.y - windowHeight / 2 + 500,
@@ -1509,31 +1693,31 @@ function setup() {
     coordoneetext.collider = "none";
     coordoneetext.textColor = "white";
     coordoneetext.layer = 1000000;
-
+  
     let reference = new Sprite(windowWidth / 2 + 100, windowHeight / 2);
     reference.collider = "static";
-
+  
     backup.utility.functions.initialize();
-
+  
     iles.functions.create();
-}
-
-let backup = {
+  }
+  
+  let backup = {
     utility: {
         collid: "static",
         opa: 0,
         menu: false,
         situaworld: false,
-
+  
         functions: {
             initialize: function () {
                 let yOffset = 80;
                 let ySpacing = 100;
                 let xOffSet = player.sprite.x + windowWidth / 2 - 200;
-
+  
                 collid = backup.utility.collid;
                 opa = backup.utility.opa;
-
+  
                 this.textspeed = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1546,7 +1730,7 @@ let backup = {
                 this.textspeed.textColor = "white";
                 this.textspeed.layer = 100000000;
                 this.textspeed.opacity = opa;
-
+  
                 this.buttonmore = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1559,7 +1743,7 @@ let backup = {
                 this.buttonmore.collider = collid;
                 this.buttonmore.layer = 100000000;
                 this.buttonmore.opacity = opa;
-
+  
                 this.buttonless = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1572,9 +1756,9 @@ let backup = {
                 this.buttonless.collider = collid;
                 this.buttonless.layer = 100000000;
                 this.buttonless.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textVie = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1582,12 +1766,12 @@ let backup = {
                     0
                 );
                 this.textVie.textSize = 30;
-                this.textVie.text = "Vie : " + player.stats.bateau.vie;
+                this.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
                 this.textVie.collider = collid;
                 this.textVie.textColor = "white";
                 this.textVie.layer = 100000000;
                 this.textVie.opacity = opa;
-
+  
                 this.buttonMoreVie = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1600,7 +1784,7 @@ let backup = {
                 this.buttonMoreVie.collider = collid;
                 this.buttonMoreVie.layer = 100000000;
                 this.buttonMoreVie.opacity = opa;
-
+  
                 this.buttonLessVie = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1613,9 +1797,9 @@ let backup = {
                 this.buttonLessVie.collider = collid;
                 this.buttonLessVie.layer = 100000000;
                 this.buttonLessVie.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textManiabilite = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1629,7 +1813,7 @@ let backup = {
                 this.textManiabilite.textColor = "white";
                 this.textManiabilite.layer = 100000000;
                 this.textManiabilite.opacity = opa;
-
+  
                 this.buttonMoreManiabilite = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1642,7 +1826,7 @@ let backup = {
                 this.buttonMoreManiabilite.collider = collid;
                 this.buttonMoreManiabilite.layer = 100000000;
                 this.buttonMoreManiabilite.opacity = opa;
-
+  
                 this.buttonLessManiabilite = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1655,9 +1839,9 @@ let backup = {
                 this.buttonLessManiabilite.collider = collid;
                 this.buttonLessManiabilite.layer = 100000000;
                 this.buttonLessManiabilite.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textTaille = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1670,7 +1854,7 @@ let backup = {
                 this.textTaille.textColor = "white";
                 this.textTaille.layer = 100000000;
                 this.textTaille.opacity = opa;
-
+  
                 this.buttonMoreTaille = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1683,7 +1867,7 @@ let backup = {
                 this.buttonMoreTaille.collider = collid;
                 this.buttonMoreTaille.layer = 100000000;
                 this.buttonMoreTaille.opacity = opa;
-
+  
                 this.buttonLessTaille = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1696,9 +1880,9 @@ let backup = {
                 this.buttonLessTaille.collider = collid;
                 this.buttonLessTaille.layer = 100000000;
                 this.buttonLessTaille.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textResistance = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1712,7 +1896,7 @@ let backup = {
                 this.textResistance.textColor = "white";
                 this.textResistance.layer = 100000000;
                 this.textResistance.opacity = opa;
-
+  
                 this.buttonMoreResistance = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1725,7 +1909,7 @@ let backup = {
                 this.buttonMoreResistance.collider = collid;
                 this.buttonMoreResistance.layer = 100000000;
                 this.buttonMoreResistance.opacity = opa;
-
+  
                 this.buttonLessResistance = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1738,9 +1922,9 @@ let backup = {
                 this.buttonLessResistance.collider = collid;
                 this.buttonLessResistance.layer = 100000000;
                 this.buttonLessResistance.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textResistanceFeu = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1754,7 +1938,7 @@ let backup = {
                 this.textResistanceFeu.textColor = "white";
                 this.textResistanceFeu.layer = 100000000;
                 this.textResistanceFeu.opacity = opa;
-
+  
                 this.buttonMoreResistanceFeu = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1767,7 +1951,7 @@ let backup = {
                 this.buttonMoreResistanceFeu.collider = collid;
                 this.buttonMoreResistanceFeu.layer = 100000000;
                 this.buttonMoreResistanceFeu.opacity = opa;
-
+  
                 this.buttonLessResistanceFeu = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1780,9 +1964,9 @@ let backup = {
                 this.buttonLessResistanceFeu.collider = collid;
                 this.buttonLessResistanceFeu.layer = 100000000;
                 this.buttonLessResistanceFeu.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textDegatsBase = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1796,7 +1980,7 @@ let backup = {
                 this.textDegatsBase.textColor = "white";
                 this.textDegatsBase.layer = 100000000;
                 this.textDegatsBase.opacity = opa;
-
+  
                 this.buttonMoreDegatsBase = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1809,7 +1993,7 @@ let backup = {
                 this.buttonMoreDegatsBase.collider = collid;
                 this.buttonMoreDegatsBase.layer = 100000000;
                 this.buttonMoreDegatsBase.opacity = opa;
-
+  
                 this.buttonLessDegatsBase = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1822,9 +2006,9 @@ let backup = {
                 this.buttonLessDegatsBase.collider = collid;
                 this.buttonLessDegatsBase.layer = 100000000;
                 this.buttonLessDegatsBase.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textDegatsFeu = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1838,7 +2022,7 @@ let backup = {
                 this.textDegatsFeu.textColor = "white";
                 this.textDegatsFeu.layer = 100000000;
                 this.textDegatsFeu.opacity = opa;
-
+  
                 this.buttonMoreDegatsFeu = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1851,7 +2035,7 @@ let backup = {
                 this.buttonMoreDegatsFeu.collider = collid;
                 this.buttonMoreDegatsFeu.layer = 100000000;
                 this.buttonMoreDegatsFeu.opacity = opa;
-
+  
                 this.buttonLessDegatsFeu = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1864,11 +2048,11 @@ let backup = {
                 this.buttonLessDegatsFeu.collider = collid;
                 this.buttonLessDegatsFeu.layer = 100000000;
                 this.buttonLessDegatsFeu.opacity = opa;
-
+  
                 //ligne 2
                 xOffSet = xOffSet - 300;
                 yOffset = 80;
-
+  
                 this.textRecharge = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1882,7 +2066,7 @@ let backup = {
                 this.textRecharge.textColor = "white";
                 this.textRecharge.layer = 100000000;
                 this.textRecharge.opacity = opa;
-
+  
                 this.buttonMoreRecharge = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1895,7 +2079,7 @@ let backup = {
                 this.buttonMoreRecharge.collider = collid;
                 this.buttonMoreRecharge.layer = 100000000;
                 this.buttonMoreRecharge.opacity = opa;
-
+  
                 this.buttonLessRecharge = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1908,9 +2092,9 @@ let backup = {
                 this.buttonLessRecharge.collider = collid;
                 this.buttonLessRecharge.layer = 100000000;
                 this.buttonLessRecharge.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textVitesse = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1924,7 +2108,7 @@ let backup = {
                 this.textVitesse.textColor = "white";
                 this.textVitesse.layer = 100000000;
                 this.textVitesse.opacity = opa;
-
+  
                 this.buttonMoreVitesse = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1937,7 +2121,7 @@ let backup = {
                 this.buttonMoreVitesse.collider = collid;
                 this.buttonMoreVitesse.layer = 100000000;
                 this.buttonMoreVitesse.opacity = opa;
-
+  
                 this.buttonLessVitesse = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1950,9 +2134,9 @@ let backup = {
                 this.buttonLessVitesse.collider = collid;
                 this.buttonLessVitesse.layer = 100000000;
                 this.buttonLessVitesse.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textDispersion = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -1966,7 +2150,7 @@ let backup = {
                 this.textDispersion.textColor = "white";
                 this.textDispersion.layer = 100000000;
                 this.textDispersion.opacity = opa;
-
+  
                 this.buttonMoreDispersion = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1979,7 +2163,7 @@ let backup = {
                 this.buttonMoreDispersion.collider = collid;
                 this.buttonMoreDispersion.layer = 100000000;
                 this.buttonMoreDispersion.opacity = opa;
-
+  
                 this.buttonLessDispersion = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -1992,9 +2176,9 @@ let backup = {
                 this.buttonLessDispersion.collider = collid;
                 this.buttonLessDispersion.layer = 100000000;
                 this.buttonLessDispersion.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textPortee = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -2007,7 +2191,7 @@ let backup = {
                 this.textPortee.textColor = "white";
                 this.textPortee.layer = 100000000;
                 this.textPortee.opacity = opa;
-
+  
                 this.buttonMorePortee = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2020,7 +2204,7 @@ let backup = {
                 this.buttonMorePortee.collider = collid;
                 this.buttonMorePortee.layer = 100000000;
                 this.buttonMorePortee.opacity = opa;
-
+  
                 this.buttonLessPortee = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2033,9 +2217,9 @@ let backup = {
                 this.buttonLessPortee.collider = collid;
                 this.buttonLessPortee.layer = 100000000;
                 this.buttonLessPortee.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textProjectiles = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -2049,7 +2233,7 @@ let backup = {
                 this.textProjectiles.textColor = "white";
                 this.textProjectiles.layer = 100000000;
                 this.textProjectiles.opacity = opa;
-
+  
                 this.buttonMoreProjectiles = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2062,7 +2246,7 @@ let backup = {
                 this.buttonMoreProjectiles.collider = collid;
                 this.buttonMoreProjectiles.layer = 100000000;
                 this.buttonMoreProjectiles.opacity = opa;
-
+  
                 this.buttonLessProjectiles = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2075,9 +2259,9 @@ let backup = {
                 this.buttonLessProjectiles.collider = collid;
                 this.buttonLessProjectiles.layer = 100000000;
                 this.buttonLessProjectiles.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textTailleArme = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -2091,7 +2275,7 @@ let backup = {
                 this.textTailleArme.textColor = "white";
                 this.textTailleArme.layer = 100000000;
                 this.textTailleArme.opacity = opa;
-
+  
                 this.buttonMoreTailleArme = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2104,7 +2288,7 @@ let backup = {
                 this.buttonMoreTailleArme.collider = collid;
                 this.buttonMoreTailleArme.layer = 100000000;
                 this.buttonMoreTailleArme.opacity = opa;
-
+  
                 this.buttonLessTailleArme = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2117,9 +2301,9 @@ let backup = {
                 this.buttonLessTailleArme.collider = collid;
                 this.buttonLessTailleArme.layer = 100000000;
                 this.buttonLessTailleArme.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textPenetration = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -2133,7 +2317,7 @@ let backup = {
                 this.textPenetration.textColor = "white";
                 this.textPenetration.layer = 100000000;
                 this.textPenetration.opacity = opa;
-
+  
                 this.buttonMorePenetration = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2146,7 +2330,7 @@ let backup = {
                 this.buttonMorePenetration.collider = collid;
                 this.buttonMorePenetration.layer = 100000000;
                 this.buttonMorePenetration.opacity = opa;
-
+  
                 this.buttonLessPenetration = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2159,9 +2343,9 @@ let backup = {
                 this.buttonLessPenetration.collider = collid;
                 this.buttonLessPenetration.layer = 100000000;
                 this.buttonLessPenetration.opacity = opa;
-
+  
                 yOffset += ySpacing;
-
+  
                 this.textRicochets = new Sprite(
                     xOffSet,
                     player.sprite.y - windowHeight / 2 + yOffset,
@@ -2175,7 +2359,7 @@ let backup = {
                 this.textRicochets.textColor = "white";
                 this.textRicochets.layer = 100000000;
                 this.textRicochets.opacity = opa;
-
+  
                 this.buttonMoreRicochets = new Sprite(
                     xOffSet + 50,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2188,7 +2372,7 @@ let backup = {
                 this.buttonMoreRicochets.collider = collid;
                 this.buttonMoreRicochets.layer = 100000000;
                 this.buttonMoreRicochets.opacity = opa;
-
+  
                 this.buttonLessRicochets = new Sprite(
                     xOffSet + 100,
                     player.sprite.y - windowHeight / 2 + yOffset + 50,
@@ -2201,7 +2385,7 @@ let backup = {
                 this.buttonLessRicochets.collider = collid;
                 this.buttonLessRicochets.layer = 100000000;
                 this.buttonLessRicochets.opacity = opa;
-
+  
                 this.buttonmenu = new Sprite(
                     player.sprite.x - windowWidth / 2 + 180,
                     player.sprite.y + windowHeight / 2 - 100,
@@ -2217,202 +2401,202 @@ let backup = {
                 this.buttonmenu.stroke = "white";
                 this.buttonmenu.strokeWeight = 2;
             },
-
+  
             run() {
                 let xOffSet = player.sprite.x + windowWidth / 2 - 200;
                 let back = backup.utility.functions;
-
+  
                 // Update button positions
-
+  
                 back.textspeed.x = xOffSet;
                 back.textspeed.y = player.sprite.y - windowHeight / 2 + 80;
-
+  
                 back.textVie.x = xOffSet;
                 back.textVie.y = player.sprite.y - windowHeight / 2 + 180;
-
+  
                 back.textManiabilite.x = xOffSet;
                 back.textManiabilite.y =
                     player.sprite.y - windowHeight / 2 + 280;
-
+  
                 back.textTaille.x = xOffSet;
                 back.textTaille.y = player.sprite.y - windowHeight / 2 + 380;
-
+  
                 back.textResistance.x = xOffSet;
                 back.textResistance.y =
                     player.sprite.y - windowHeight / 2 + 480;
-
+  
                 back.textResistanceFeu.x = xOffSet;
                 back.textResistanceFeu.y =
                     player.sprite.y - windowHeight / 2 + 580;
-
+  
                 back.buttonmore.x = xOffSet + 100;
                 back.buttonmore.y = player.sprite.y - windowHeight / 2 + 130;
-
+  
                 back.buttonless.x = xOffSet + 50;
                 back.buttonless.y = player.sprite.y - windowHeight / 2 + 130;
-
+  
                 back.buttonMoreVie.x = xOffSet + 100;
                 back.buttonMoreVie.y = player.sprite.y - windowHeight / 2 + 230;
-
+  
                 back.buttonLessVie.x = xOffSet + 50;
                 back.buttonLessVie.y = player.sprite.y - windowHeight / 2 + 230;
-
+  
                 back.buttonMoreManiabilite.x = xOffSet + 100;
                 back.buttonMoreManiabilite.y =
                     player.sprite.y - windowHeight / 2 + 330;
-
+  
                 back.buttonLessManiabilite.x = xOffSet + 50;
                 back.buttonLessManiabilite.y =
                     player.sprite.y - windowHeight / 2 + 330;
-
+  
                 back.buttonMoreTaille.x = xOffSet + 100;
                 back.buttonMoreTaille.y =
                     player.sprite.y - windowHeight / 2 + 430;
-
+  
                 back.buttonLessTaille.x = xOffSet + 50;
                 back.buttonLessTaille.y =
                     player.sprite.y - windowHeight / 2 + 430;
-
+  
                 back.buttonMoreResistance.x = xOffSet + 100;
                 back.buttonMoreResistance.y =
                     player.sprite.y - windowHeight / 2 + 530;
-
+  
                 back.buttonLessResistance.x = xOffSet + 50;
                 back.buttonLessResistance.y =
                     player.sprite.y - windowHeight / 2 + 530;
-
+  
                 back.buttonMoreResistanceFeu.x = xOffSet + 100;
                 back.buttonMoreResistanceFeu.y =
                     player.sprite.y - windowHeight / 2 + 630;
-
+  
                 back.buttonLessResistanceFeu.x = xOffSet + 50;
                 back.buttonLessResistanceFeu.y =
                     player.sprite.y - windowHeight / 2 + 630;
-
+  
                 back.textDegatsBase.x = xOffSet + 50;
                 back.textDegatsBase.y =
                     player.sprite.y - windowHeight / 2 + 700;
-
+  
                 back.buttonMoreDegatsBase.x = xOffSet + 100;
                 back.buttonMoreDegatsBase.y =
                     player.sprite.y - windowHeight / 2 + 750;
-
+  
                 back.buttonLessDegatsBase.x = xOffSet + 50;
                 back.buttonLessDegatsBase.y =
                     player.sprite.y - windowHeight / 2 + 750;
-
+  
                 back.textDegatsFeu.x = xOffSet + 50;
                 back.textDegatsFeu.y = player.sprite.y - windowHeight / 2 + 800;
-
+  
                 back.buttonMoreDegatsFeu.x = xOffSet + 100;
                 back.buttonMoreDegatsFeu.y =
                     player.sprite.y - windowHeight / 2 + 850;
-
+  
                 back.buttonLessDegatsFeu.x = xOffSet + 50;
                 back.buttonLessDegatsFeu.y =
                     player.sprite.y - windowHeight / 2 + 850;
-
+  
                 xOffSet2 = xOffSet - 300;
                 yOffset2 = 80;
-
+  
                 back.textRecharge.x = xOffSet2;
                 back.textRecharge.y = player.sprite.y - windowHeight / 2 + 80;
-
+  
                 back.buttonMoreRecharge.x = xOffSet2 + 100;
                 back.buttonMoreRecharge.y =
                     player.sprite.y - windowHeight / 2 + 130;
-
+  
                 back.buttonLessRecharge.x = xOffSet2 + 50;
                 back.buttonLessRecharge.y =
                     player.sprite.y - windowHeight / 2 + 130;
-
+  
                 back.textVitesse.x = xOffSet2;
                 back.textVitesse.y = player.sprite.y - windowHeight / 2 + 180;
-
+  
                 back.buttonMoreVitesse.x = xOffSet2 + 100;
                 back.buttonMoreVitesse.y =
                     player.sprite.y - windowHeight / 2 + 230;
-
+  
                 back.buttonLessVitesse.x = xOffSet2 + 50;
                 back.buttonLessVitesse.y =
                     player.sprite.y - windowHeight / 2 + 230;
-
+  
                 back.textDispersion.x = xOffSet2;
                 back.textDispersion.y =
                     player.sprite.y - windowHeight / 2 + 280;
-
+  
                 back.buttonMoreDispersion.x = xOffSet2 + 100;
                 back.buttonMoreDispersion.y =
                     player.sprite.y - windowHeight / 2 + 330;
-
+  
                 back.buttonLessDispersion.x = xOffSet2 + 50;
                 back.buttonLessDispersion.y =
                     player.sprite.y - windowHeight / 2 + 330;
-
+  
                 back.textPortee.x = xOffSet2;
                 back.textPortee.y = player.sprite.y - windowHeight / 2 + 380;
-
+  
                 back.buttonMorePortee.x = xOffSet2 + 100;
                 back.buttonMorePortee.y =
                     player.sprite.y - windowHeight / 2 + 430;
-
+  
                 back.buttonLessPortee.x = xOffSet2 + 50;
                 back.buttonLessPortee.y =
                     player.sprite.y - windowHeight / 2 + 430;
-
+  
                 back.textProjectiles.x = xOffSet2;
                 back.textProjectiles.y =
                     player.sprite.y - windowHeight / 2 + 480;
-
+  
                 back.buttonMoreProjectiles.x = xOffSet2 + 100;
                 back.buttonMoreProjectiles.y =
                     player.sprite.y - windowHeight / 2 + 530;
-
+  
                 back.buttonLessProjectiles.x = xOffSet2 + 50;
                 back.buttonLessProjectiles.y =
                     player.sprite.y - windowHeight / 2 + 530;
-
+  
                 back.textTailleArme.x = xOffSet2;
                 back.textTailleArme.y =
                     player.sprite.y - windowHeight / 2 + 580;
-
+  
                 back.buttonMoreTailleArme.x = xOffSet2 + 100;
                 back.buttonMoreTailleArme.y =
                     player.sprite.y - windowHeight / 2 + 630;
-
+  
                 back.buttonLessTailleArme.x = xOffSet2 + 50;
                 back.buttonLessTailleArme.y =
                     player.sprite.y - windowHeight / 2 + 630;
-
+  
                 back.textPenetration.x = xOffSet2;
                 back.textPenetration.y =
                     player.sprite.y - windowHeight / 2 + 680;
-
+  
                 back.buttonMorePenetration.x = xOffSet2 + 100;
                 back.buttonMorePenetration.y =
                     player.sprite.y - windowHeight / 2 + 730;
-
+  
                 back.buttonLessPenetration.x = xOffSet2 + 50;
                 back.buttonLessPenetration.y =
                     player.sprite.y - windowHeight / 2 + 730;
-
+  
                 back.textRicochets.x = xOffSet2;
                 back.textRicochets.y = player.sprite.y - windowHeight / 2 + 780;
-
+  
                 back.buttonMoreRicochets.x = xOffSet2 + 100;
                 back.buttonMoreRicochets.y =
                     player.sprite.y - windowHeight / 2 + 830;
-
+  
                 back.buttonLessRicochets.x = xOffSet2 + 50;
                 back.buttonLessRicochets.y =
                     player.sprite.y - windowHeight / 2 + 830;
-
+  
                 back.buttonmenu.x = player.sprite.x - windowWidth / 2 + 180;
                 back.buttonmenu.y = player.sprite.y + windowHeight / 2 - 100;
-
+  
                 menu = false;
                 situaworld = false;
-
+  
                 if (
                     back.buttonmenu.mouse.pressed() &&
                     backup.utility.menu === true
@@ -2432,11 +2616,11 @@ let backup = {
                     back.buttonmenu.color = "blue";
                     world.timeScale = 0;
                 }
-
+  
                 if (backup.utility.menu === false) {
                     collid = "none";
                 }
-
+  
                 back.buttonmore.opacity = opa;
                 back.buttonmore.collider = collid;
                 back.buttonless.opacity = opa;
@@ -2450,7 +2634,7 @@ let backup = {
                 back.buttonLessManiabilite.opacity = opa;
                 back.buttonLessManiabilite.collider = collid;
                 back.buttonMoreTaille.opacity = opa;
-
+  
                 back.buttonMoreTaille.collider = collid;
                 back.buttonLessTaille.opacity = opa;
                 back.buttonLessTaille.collider = collid;
@@ -2496,7 +2680,7 @@ let backup = {
                 back.buttonLessTailleArme.collider = collid;
                 back.buttonMorePenetration.opacity = opa;
                 back.buttonMorePenetration.collider = collid;
-
+  
                 back.buttonLessPenetration.opacity = opa;
                 back.buttonLessPenetration.collider = collid;
                 back.buttonMoreRicochets.opacity = opa;
@@ -2535,7 +2719,7 @@ let backup = {
                 back.textPenetration.collider = collid;
                 back.textRicochets.opacity = opa;
                 back.textRicochets.collider = collid;
-
+  
                 if (back.buttonmore.mouse.pressed()) {
                     player.stats.bateau.vitesse += 0.1;
                     player.stats.bateau.vitesse = parseFloat(
@@ -2551,15 +2735,15 @@ let backup = {
                     back.textspeed.text =
                         "Speed : " + player.stats.bateau.vitesse;
                 }
-
+  
                 if (back.buttonMoreVie.mouse.pressed()) {
-                    player.stats.bateau.vie += 10;
-                    back.textVie.text = "Vie : " + player.stats.bateau.vie;
+                    player.stats.bateau.vieMax += 10;
+                    back.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
                 } else if (back.buttonLessVie.mouse.pressed()) {
-                    player.stats.bateau.vie -= 10;
-                    back.textVie.text = "Vie : " + player.stats.bateau.vie;
+                    player.stats.bateau.vieMax -= 10;
+                    back.textVie.text = "Vie Max : " + player.stats.bateau.vieMax;
                 }
-
+  
                 if (back.buttonMoreManiabilite.mouse.pressed()) {
                     player.stats.bateau.maniabilite += 0.1;
                     player.stats.bateau.maniabilite = parseFloat(
@@ -2575,7 +2759,7 @@ let backup = {
                     back.textManiabilite.text =
                         "Maniabilité : " + player.stats.bateau.maniabilite;
                 }
-
+  
                 if (back.buttonMoreTaille.mouse.pressed()) {
                     player.stats.bateau.taille += 0.1;
                     player.stats.bateau.taille = parseFloat(
@@ -2591,7 +2775,7 @@ let backup = {
                     back.textTaille.text =
                         "Taille : " + player.stats.bateau.taille;
                 }
-
+  
                 if (back.buttonMoreResistance.mouse.pressed()) {
                     player.stats.bateau.resistance.degats += 0.1;
                     player.stats.bateau.resistance.degats = parseFloat(
@@ -2607,7 +2791,7 @@ let backup = {
                     back.textResistance.text =
                         "Résistance : " + player.stats.bateau.resistance.degats;
                 }
-
+  
                 if (back.buttonMoreResistanceFeu.mouse.pressed()) {
                     player.stats.bateau.resistance.feu += 0.1;
                     player.stats.bateau.resistance.feu = parseFloat(
@@ -2625,7 +2809,7 @@ let backup = {
                         "Résistance Feu : " +
                         player.stats.bateau.resistance.feu;
                 }
-
+  
                 if (back.buttonMoreDegatsBase.mouse.pressed()) {
                     player.stats.arme.degats.base += 1;
                     back.textDegatsBase.text =
@@ -2635,7 +2819,7 @@ let backup = {
                     back.textDegatsBase.text =
                         "Dégâts Base : " + player.stats.arme.degats.base;
                 }
-
+  
                 if (back.buttonMoreDegatsFeu.mouse.pressed()) {
                     player.stats.arme.degats.feu += 1;
                     back.textDegatsFeu.text =
@@ -2645,7 +2829,7 @@ let backup = {
                     back.textDegatsFeu.text =
                         "Dégâts Feu : " + player.stats.arme.degats.feu;
                 }
-
+  
                 if (back.buttonMoreRecharge.mouse.pressed()) {
                     player.stats.arme.recharge += 1;
                     back.textRecharge.text =
@@ -2655,7 +2839,7 @@ let backup = {
                     back.textRecharge.text =
                         "Recharge : " + player.stats.arme.recharge;
                 }
-
+  
                 if (back.buttonMoreVitesse.mouse.pressed()) {
                     player.stats.arme.vitesse += 1;
                     back.textVitesse.text =
@@ -2665,7 +2849,7 @@ let backup = {
                     back.textVitesse.text =
                         "Vitesse : " + player.stats.arme.vitesse;
                 }
-
+  
                 if (back.buttonMoreDispersion.mouse.pressed()) {
                     player.stats.arme.dispersion += 1;
                     back.textDispersion.text =
@@ -2675,7 +2859,7 @@ let backup = {
                     back.textDispersion.text =
                         "Dispersion : " + player.stats.arme.dispersion;
                 }
-
+  
                 if (back.buttonMorePortee.mouse.pressed()) {
                     player.stats.arme.portee += 10;
                     back.textPortee.text =
@@ -2685,7 +2869,7 @@ let backup = {
                     back.textPortee.text =
                         "Portée : " + player.stats.arme.portee;
                 }
-
+  
                 if (back.buttonMoreProjectiles.mouse.pressed()) {
                     player.stats.arme.projectiles += 1;
                     back.textProjectiles.text =
@@ -2695,7 +2879,7 @@ let backup = {
                     back.textProjectiles.text =
                         "Projectiles : " + player.stats.arme.projectiles;
                 }
-
+  
                 if (back.buttonMoreTailleArme.mouse.pressed()) {
                     player.stats.arme.taille += 0.1;
                     player.stats.arme.taille = parseFloat(
@@ -2711,7 +2895,7 @@ let backup = {
                     back.textTailleArme.text =
                         "Taille Arme : " + player.stats.arme.taille;
                 }
-
+  
                 if (back.buttonMorePenetration.mouse.pressed()) {
                     player.stats.arme.penetration += 1;
                     back.textPenetration.text =
@@ -2721,7 +2905,7 @@ let backup = {
                     back.textPenetration.text =
                         "Pénétration : " + player.stats.arme.penetration;
                 }
-
+  
                 if (back.buttonMoreRicochets.mouse.pressed()) {
                     player.stats.arme.ricochets += 1;
                     back.textRicochets.text =
@@ -2734,11 +2918,11 @@ let backup = {
             },
         },
     },
-};
-
-function draw() {
+  };
+  
+  function draw() {
     background("skyblue");
-
+  
     if (world.timeScale === 1) {
         if (timerseconde == 60) {
             timermillieseconde = 0;
@@ -2754,36 +2938,41 @@ function draw() {
                     "Time : " + timerminute + "min " + timerseconde + "s";
             }
         }
-
+  
         if (frameCount % 60 == 0 && arme.utility.recharge > 0) {
             arme.utility.recharge--;
             reload.text = "Reload : " + arme.utility.recharge;
         }
-
+  
         time.x = player.sprite.x - windowWidth / 2 + 180;
         time.y = player.sprite.y - windowHeight / 2 + 50;
-
+  
         reload.x = player.sprite.x - windowWidth / 2 + 180;
         reload.y = player.sprite.y - windowHeight / 2 + 100;
-
+  
         niveautext.text = "Niveau : " + player.stats.bateau.niveau;
         exptext.text = "Exp : " + player.stats.bateau.experience;
-
+  
         niveautext.x = player.sprite.x - windowWidth / 2 + 180;
         niveautext.y = player.sprite.y - windowHeight / 2 + 150;
-
+  
         exptext.x = player.sprite.x - windowWidth / 2 + 180;
         exptext.y = player.sprite.y - windowHeight / 2 + 200;
-
+        
+  
+        textvie.text = "Vie : " + player.stats.bateau.vie;
+        textvie.x = player.sprite.x + windowWidth / 2 - 180;
+          textvie.y = player.sprite.y - windowHeight / 2 + 50;
+  
         coordonneX = Math.floor(player.sprite.x);
         coordonneY = Math.floor(player.sprite.y);
         coordoneetext.text = "X:" + coordonneX + " , Y:" + coordonneY;
         coordoneetext.x = player.sprite.x;
         coordoneetext.y = player.sprite.y - windowHeight / 2 + 50;
-
+  
         camera.x = player.sprite.x;
         camera.y = player.sprite.y;
-
+  
         player.functions.runAll();
         viseur.functions.runAll();
         arme.functions.runAll();
@@ -2792,15 +2981,21 @@ function draw() {
         spawnRoutine.functions.runAll();
         expblock.functions.runAll();
         iles.functions.runAll();
-        interniveau.runAll();
-
+          interniveau.runAll();
+          vieblock.functions.runAll();
+        
+  
         backup.utility.functions.run();
-
+  
         player.sprite.layer = 100;
         viseur.sprite.layer = 101;
     } else {
-		interniveau.run();
-        backup.utility.functions.run();
+      backup.utility.functions.run();
+  
+    interniveau.run(); 
+  
+        
         
     }
-}
+  }
+  
