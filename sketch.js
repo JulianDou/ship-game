@@ -10,7 +10,7 @@ let player = {
             resistance_degats: 1.0,
         },
         arme: {
-            degats_base: 40.0,
+            degats_base: 10.0,
             degats_feu: 0.0, // La quantité de dégâts qu'inflige le feu chaque seconde
             dureeFeu: 5, // En secondes
             recharge: 2, // En secondes
@@ -1450,7 +1450,7 @@ let interniveau = {
         world.timeScale = 0;
         let centerX = player.sprite.x;
         let centerY = player.sprite.y;
-        let size = 600; // Size of the large diamond
+        let size = 800; // Size of the large diamond
 
         let ecran = new Sprite(centerX, centerY, 0, 0);
         ecran.width = windowWidth;
@@ -1470,11 +1470,12 @@ let interniveau = {
         buttonpast.width = 350;
         buttonpast.height = 50;
         buttonpast.color = "gray";
+        buttonpast.image = "assets/panc.png";
 
         buttonpast.layer = 100000000;
-        buttonpast.text = "Regagnez vos PV";
+        /*buttonpast.text = "Regagnez vos PV";
         buttonpast.textSize = 40;
-        buttonpast.textColor = "white";
+        buttonpast.textColor = "white";*/
         interniveau.utility.buttonpast = buttonpast;
 
         // Create the large diamond
@@ -1486,16 +1487,18 @@ let interniveau = {
         largeDiamond.collider = "none";
         largeDiamond.layer = 100000000;
         largeDiamond.collider = "none";
+        largeDiamond.image= "assets/planche.png";
+        largeDiamond.image.scale=1.2;
 
         interniveau.utility.largeDiamond = largeDiamond;
 
         // Create the four smaller diamonds
-        let smallSize = size / 2.2;
+        let smallSize = size / 2.7;
         let offsets = [
-            { x: 215, y: 0 },
-            { x: -215, y: 0 },
-            { x: 0, y: 215 },
-            { x: 0, y: -215 },
+            { x: 230, y: 0 },
+            { x: -230, y: 0 },
+            { x: 0, y: 230 },
+            { x: 0, y: -230 },
         ];
 
         let ids = ameliorations.functions.chooseRandom(4);
@@ -1516,9 +1519,11 @@ let interniveau = {
             );
             smallDiamond.width = smallSize;
             smallDiamond.height = smallSize;
-            smallDiamond.rotation = 45;
+            smallDiamond.rotation = -45;
             smallDiamond.layer = 100000000;
             smallDiamond.color = "gray";
+            smallDiamond.image = "assets/parchemin.png";
+            smallDiamond.image.scale= 1.1;
             interniveau.utility.smallDiamond.push(smallDiamond);
             smallDiamond.idAmelioration = ids[i];
 
@@ -1602,138 +1607,628 @@ let ameliorations = {
         //     bannit: [Liste des IDS bannies],
         // },
 
-        {
+        { // 1 - Boulets en plomb
             id: 1,
-            nom: "A1",
+            nom: "Boulets en plomb",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration A1",
+            description: "Dommage d'avoir mis notre tailleur de pierre au chômage. Mais bon, ça fait plus de dégâts.",
             initiale: true,
             effets: [
-                {
-                    type: "bateau",
-                    stat: "vie",
-                    operation: "fixe",
-                    valeur: 10,
-                },
                 {
                     type: "arme",
                     stat: "degats_base",
                     operation: "fixe",
-                    valeur: -10,
+                    valeur: 5,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
                 }
             ],
-            debloque: [2],
+            debloque: [5],
             bannit: [],
         },
-        {
+
+        { // 2 - Boulets légers
             id: 2,
-            nom: "A2",
+            nom: "Boulets légers",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration A2",
-            initiale: false,
+            description: "On s'est dit qu'avec des boulets plus légers, on pourrait en emporter plus.",
+            initiale: true,
             effets: [
                 {
-                    type: "bateau",
-                    stat: "vie",
+                    type: "arme",
+                    stat: "degats_base",
                     operation: "fixe",
-                    valeur: 20,
+                    valeur: -3,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.1,
+                }
+            ],
+            debloque: [6, 7],
+            bannit: [11],
+        },
+
+        { // 3 - Boulets taillés
+            id: 3,
+            nom: "Boulets taillés",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "On a donné encore plus de travail au tailleur de pierre ! Comment ça, on l'a viré ?...",
+            initiale: true,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 1,
                 },
                 {
                     type: "arme",
                     stat: "degats_base",
                     operation: "fixe",
-                    valeur: -10,
+                    valeur: -5,
+                },
+                {
+                    type: "arme",
+                    stat: "penetration",
+                    operation: "fixe",
+                    valeur: 1,
                 }
             ],
-            debloque: [],
-            bannit: [4],
+            debloque: [8],
+            bannit: [],
         },
-        {
-            id: 3,
-            nom: "B1",
+
+        { // 4 - Inspection du charpentier
+            id: 4,
+            nom: "Inspection du charpentier",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration B1",
+            description: "Si on en croit le charpentier, le bateau est au top de la forme...",
             initiale: true,
             effets: [
                 {
                     type: "bateau",
                     stat: "vie",
                     operation: "fixe",
-                    valeur: -10,
-                },
+                    valeur: 10,
+                }
+            ],
+            debloque: [9,10],
+            bannit: [],
+        },
+
+        { // 5 - Gros calibre
+            id: 5,
+            nom: "Gros calibre",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Des boulets plus gros = des trous plus gros. Logique ! Et ne me dites pas 'mais c'est lourd'.",
+            initiale: false,
+            effets: [
                 {
                     type: "arme",
                     stat: "degats_base",
                     operation: "fixe",
-                    valeur: 10,
+                    valeur: 5,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: 0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
+                },
+                {
+                    type: "arme",
+                    stat: "taille",
+                    operation: "fixe",
+                    valeur: 0.2,
                 }
             ],
-            debloque: [4],
+            debloque: [11],
             bannit: [],
         },
-        {
-            id: 4,
-            nom: "B2",
+
+        { // 6 - Sacs de poudre
+            id: 6,
+            nom: "Sacs de poudre",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration B2",
+            description: "Tiens, eh, et si on préparait la poudre AVANT d'en avoir besoin ?",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
+                }
+            ],
+            debloque: [12],
+            bannit: [],
+        },
+
+        { // 7 - Tireurs déchaînés
+            id: 7,
+            nom: "Tireurs déchaînés",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Le capitaine a donné un sacré discours à l'équipage, mais maintenant ils sont surexcités !",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: 10,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.2,
+                }
+            ],
+            debloque: [12],
+            bannit: [8, 16],
+        },
+
+        { // 8 - Tireurs attentionnés
+            id: 8,
+            nom: "Tireurs attentionnés",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "On a entraîné les tireurs à être plus précis. Ils ont même arrêté de tirer sur les mouettes !",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: -5,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: +0.2,
+                }
+            ],
+            debloque: [13],
+            bannit: [7],
+        },
+
+        { // 9 - Pièces de rechange
+            id: 9,
+            nom: "Pièces de rechange",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Le contremaître a eu l'idée d'emporter des pièces en plus, 'au cas où'. Mouais...",
             initiale: false,
             effets: [
                 {
                     type: "bateau",
                     stat: "vie",
                     operation: "fixe",
-                    valeur: -10,
+                    valeur: 20,
                 },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: -0.2,
+                }
+            ],
+            debloque: [14],
+            bannit: [18, 19],
+        },
+
+        { // 10 - Coque épaisse
+            id: 10,
+            nom: "Coque épaisse",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "On s'est dit qu'une coque ça protégeait bien. Du coup, on s'est dit : eh, pourquoi pas deux ?",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "resistance_degats",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: -0.2,
+                },
+                {
+                    type: "bateau",
+                    stat: "maniabilite",
+                    operation: "fixe",
+                    valeur: -0.1,
+                }
+            ],
+            debloque: [15],
+            bannit: [],
+        },
+
+        { // 11 - Boulets XL
+            id: 11,
+            nom: "Boulets XL",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "A deux doigts d'inventer la Grosse Bertha.",
+            initiale: false,
+            effets: [
                 {
                     type: "arme",
                     stat: "degats_base",
                     operation: "fixe",
-                    valeur: 20,
+                    valeur: 8,
+                },
+                {
+                    type: "arme",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: -1,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
+                },
+                {
+                    type: "arme",
+                    stat: "taille",
+                    operation: "fixe",
+                    valeur: 0.3,
                 }
             ],
             debloque: [],
             bannit: [2],
-        },           
-        {
-            id: 5,
-            nom: "C1",
+        },
+
+        { // 12 - Barils de rhum
+            id: 12,
+            nom: "Barils de rhum",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration C1",
-            initiale: true,
+            description: "Le capitaine a eu une idée de génie : il a dit 'et si on buvait un coup ?' !",
+            initiale: false,
             effets: [
                 {
+                    type: "bateau",
+                    stat: "resistance_feu",
+                    operation: "fixe",
+                    valeur: 0.2,
+                },
+                {
                     type: "arme",
-                    stat: "degats_base",
-                    operation: "mult",
-                    valeur: 1.5,
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.2,
+                },
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: 5,
                 }
             ],
             debloque: [],
             bannit: [],
         },
-        {
-            id: 6,
-            nom: "D1",
+
+        { // 13 - Double dose de poudre
+            id: 13,
+            nom: "Double dose de poudre",
             type: "amelioration",
             emplacement: undefined,
-            description: "Description de l'amelioration D1",
-            initiale: true,
+            description: "Bon, normalement, les canons devraient tenir. Normalement.",
+            initiale: false,
             effets: [
                 {
-                    type: "bateau",
-                    stat: "vie",
+                    type: "arme",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 3,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
                     operation: "mult",
                     valeur: 1.5,
                 },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: 200,
+                }
             ],
             debloque: [],
             bannit: [],
         },
+
+        { // 14 - Charpentier de bord
+            id: 14,
+            nom: "Charpentier de bord",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Le charpentier a dit 'je vais réparer le bateau'. On s'est dit qu'au final il avait qu'à venir avec nous.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: 20,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: 0.2,
+                },
+            ],
+            debloque: [16],
+            bannit: [20, 15],
+        },
+
+        { // 15 - Charpentier expert
+            id: 15,
+            nom: "Charpentier expert",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Ca fait quand même 50 ans qu'il est là, non ? MAIS COMMENT IL FAIT ??",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: 10,
+                },
+                {
+                    type: "bateau",
+                    stat: "resistance_degats",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+            ],
+            debloque: [17],
+            bannit: [14],
+        },
+
+        { // 16 - Réparations en mer
+            id: 16,
+            nom: "Réparations en mer",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "On a dit au charpentier 'tu répares le bateau'. Il a dit 'maintenant ?'. Bah oui, maintenant. Tu veux couler ?",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: 30,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: 0.1,
+                },
+            ],
+            debloque: [],
+            bannit: [7],
+        },
+
+        { // 17 - Plaques de fer
+            id: 17,
+            nom: "Plaques de fer",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "On a remarqué que quand le capitaine d'avant s'est pris un boulet, il restait que le métal. Super, l'idée !",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "resistance_degats",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: -0.2,
+                },
+                {
+                    type: "bateau",
+                    stat: "maniabilite",
+                    operation: "fixe",
+                    valeur: -0.2,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        { // 18 - Fraude fiscale
+            id: 18,
+            nom: "Fraude fiscale",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Vous êtes vraiment en train de nous dire que c'est illégal ? ON EST DES PIRATES !",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: -10,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 0.1,
+                }
+            ],
+            debloque: [20, 19],
+            bannit: [9],
+        },
+
+        { // 19 - Planches 'économisées'
+            id: 19,
+            nom: "Planches 'économisées'",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Non non, je te PROMETS, y'en a vraiment pas besoin. Promis juré.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: -15,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 0.2,
+                },
+                {
+                    type: "bateau",
+                    stat: "maniabilite",
+                    operation: "fixe",
+                    valeur: 0.1,
+                }
+            ],
+            debloque: [22],
+            bannit: [9],
+        },
+
+        { // 20 - Equipage barbare
+            id: 20,
+            nom: "Equipage barbare",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Demandez pas ce qui est arrivé à l'équipage précédent. On a dit 'barbare', on a pas dit 'gentil'.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: -10,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 0.1,
+                },
+                {
+                    type: "bateau",
+                    stat: "collision",
+                    operation: "fixe",
+                    valeur: 0.5,
+                }
+            ],
+            debloque: [21],
+            bannit: [14],
+        },
+
+        { // 21 - Boucliers viking
+            id: 21,
+            nom: "Boucliers viking",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "C'est joli et en plus ça nous protège. De toute façon on a pas le choix, on a plus de planches.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "resistance_degats",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        { // 22 - Mini rations
+            id: 22,
+            nom: "Mini rations",
+            type: "amelioration",
+            emplacement: undefined,
+            description: "Bon, alors, certes, on est plus légers, mais du coup l'équipage est pas super content.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: -10,
+                },
+                {
+                    type: "bateau",
+                    stat: "vitesse",
+                    operation: "fixe",
+                    valeur: 0.3,
+                },
+                {
+                    type: "bateau",
+                    stat: "maniabilite",
+                    operation: "fixe",
+                    valeur: 0.2,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: 0.2,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
     ],
 
     functions:{
