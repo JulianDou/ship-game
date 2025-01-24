@@ -45,12 +45,9 @@ let player = {
             resistance_feu: 1.0,
             resistance_degats: 1.0,
             niveau: 1,
-            experience: 0,
-            expMax: 100,
-            expMult: 1,
         },
         arme: {
-            degats_base: 40.0,
+            degats_base: 10.0,
             degats_feu: 0.0, // La quantité de dégâts qu'inflige le feu chaque seconde
             recharge: 2, // En secondes
             vitesse: 5,
@@ -200,11 +197,11 @@ let player = {
             )) {
                 if (player.sprite.overlaps(boulet)) {
                     if (player.stats.bateau.vie >= boulet.vie) {
-                        player.utility.degats_subits += boulet.vie;
+                        player.utility.degats_subits += boulet.vie * player.stats.bateau.resistance_degats;
                         boulet.vie = 0;
                     } else {
                         let vieavant = player.stats.bateau.vie;
-                        player.utility.degats_subits += boulet.vie;
+                        player.utility.degats_subits += boulet.vie * player.stats.bateau.resistance_degats;
                         boulet.vie -= vieavant;
                     }
                     if (boulet.vie <= 0) {
@@ -658,7 +655,7 @@ let ennemi = {
             },
             arme: {
                 degats: {
-                    base: 10.0,
+                    base: 5.0,
                     feu: 0.0,
                     dureeFeu: 0,
                 },
@@ -691,7 +688,7 @@ let ennemi = {
             },
             arme: {
                 degats: {
-                    base: 5.0,
+                    base: 3,
                     feu: 0.0,
                     dureeFeu: 0,
                 },
@@ -744,7 +741,7 @@ let ennemi = {
                 name: "barque",
                 image: "assets/ennemi-barque.png",
                 color: "purple",
-                vie: 20,
+                vie: 5,
                 vitesse: 1.8,
                 maniabilite: 1.5,
                 collision: 1.0,
@@ -757,7 +754,7 @@ let ennemi = {
             },
             arme: {
                 degats: {
-                    base: 5.0,
+                    base: 2.0,
                     feu: 0.0,
                     dureeFeu: 0,
                 },
@@ -844,22 +841,28 @@ let ennemi = {
                     // détection des iles
                     for (let ile of iles.utility.iles) {
                         for (let sprite of ile) {
-                            let distance = dist(mob.x, mob.y, sprite.x, sprite.y);
-                            if (distance < 150) {
+                            let distance = dist(mob.x, mob.y, sprite.x, sprite.y);      
+                            if (distance < 200) {
                                 mob.detectionObstacle = true;
-                                mob.rotation += 5;
+                                if (mob.sensRotation == 0) {
+                                    mob.rotation += 1;
+                                }
+                                else {
+                                    mob.rotation -= 1;
+                                }
                             }
+
                             else {
                                 mob.detectionObstacle = false;
                             }
                         }
                     }
+                
 
                     // aller vers le joueur si il n'y a pas d'obstacle
                     if (!mob.detectionObstacle) {
                         if (distance > mob.distanceCible) {
                             mob.rotateTowards(player.sprite, 0.1, 0);
-                            mob.direction = mob.rotation;
                         } else {
                             if (mob.sensRotation == 0) {
                                 if (distance < mob.distanceCible * 0.75) {
@@ -879,6 +882,7 @@ let ennemi = {
                         }
                     }
 
+                    mob.direction = mob.rotation;
                     mob.speed = mob.stats.bateau.vitesse;
 
                     /*
@@ -2572,9 +2576,11 @@ function draw() {
             }
         }
 
-        if (frameCount % 60 == 0 && arme.utility.recharge > 0) {
-            arme.utility.recharge--;
-            reload.text = "Reload : " + arme.utility.recharge;
+        if (frameCount % 6 == 0 && arme.utility.recharge > 0.0) {
+            console.log(arme.utility.recharge);
+            arme.utility.recharge -= 0.1;
+            arme.utility.recharge = Math.round(arme.utility.recharge * 10) / 10;
+            reload.text = "Reload : " + arme.utility.recharge.toFixed(1);
         }
 
         time.x = player.sprite.x - windowWidth / 2 + 180;
