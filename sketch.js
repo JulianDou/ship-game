@@ -183,7 +183,7 @@ let player = {
 
         expstat: function () {
             if (player.xp.experience >= player.xp.expMax) {
-                player.xp.experience = 0;
+                player.xp.experience = player.xp.experience - player.xp.expMax;
                 player.xp.niveau += 1;
                 player.xp.expMax = player.xp.expMax + 50;
                 interniveaucheck = true;
@@ -637,7 +637,7 @@ let expblock = {
 
 let ennemi = {
     stats: {
-        type0: {
+        type0: { // normal
             bateau: {
                 name: "normal",
                 image: "assets/ennemi-moyen.png",
@@ -670,7 +670,8 @@ let ennemi = {
                 ricochets: 0,
             },
         },
-        type1: {
+
+        type1: { // léger
             bateau: {
                 name: "leger",
                 image: "assets/ennemi-leger.png",
@@ -698,12 +699,13 @@ let ennemi = {
                 dispersion: 0,
                 portee: 500,
                 projectiles: 1,
-                taille: 1,
+                taille: 0.8,
                 penetration: 0,
                 ricochets: 0,
             },
         },
-        type2: {
+
+        type2: { // lourd
             bateau: {
                 name: "lourd",
                 image: "assets/ennemi-lourd.png",
@@ -736,7 +738,8 @@ let ennemi = {
                 ricochets: 1,
             },
         },
-        type3: {
+
+        type3: { // barque
             bateau: {
                 name: "barque",
                 image: "assets/ennemi-barque.png",
@@ -1372,6 +1375,7 @@ let interniveau = {
       ecran: null,
       buttonpast: null,
 	  textamelioration: [],
+      descriptiontext: "description",
     },
 
     runAll: function () {
@@ -1392,22 +1396,39 @@ let interniveau = {
                 interniveau.utility.textamelioration.indexOf(text) * 50;
         }
 
+        if (!interniveau.utility.dataAmeliorations) {
+            interniveau.utility.dataAmeliorations = interniveau.utility.smallDiamond.map(diamond => 
+                ameliorations.functions.getAmelioration(diamond.idAmelioration)
+            );
+        }
+
         for (let i = 0; i < interniveau.utility.smallDiamond.length; i++) {
             let dataAmelioration = ameliorations.functions.getAmelioration(interniveau.utility.smallDiamond[i].idAmelioration);
+            let diamond = interniveau.utility.smallDiamond[i];
+            
 
             if (interniveau.utility.smallDiamond[i].mouse.pressed()) {
 
                 // affichage
                 interniveau.createtext(
-                    dataAmelioration.nom
+                    dataAmelioration.nom,
+                    dataAmelioration.image
                 );
                 interniveau.utility.smallDiamond.forEach((diamond) =>
                     diamond.remove()
                 );
+                diamond.remove();
                 interniveau.utility.largeDiamond.remove();
                 interniveau.utility.smallDiamondtext.forEach((text) =>
                     text.remove()
                 );
+                let smallDiamondimage = interniveau.utility.smallDiamondtext.find(text => text.image === dataAmelioration.image);
+                if (smallDiamondimage) {
+                    smallDiamondimage.remove();
+                }
+
+                interniveau.utility.descriptiontext.remove();
+
 
                 // application de l'amélioration
                 ameliorations.functions.equiper(dataAmelioration.id);
@@ -1415,22 +1436,43 @@ let interniveau = {
                 // fermeture du menu
                 interniveau.utility.ecran.remove();
                 interniveau.utility.buttonpast.remove();
+                interniveau.utility.smallDiamond = [];
+                interniveau.utility.largeDiamond = null;
+                interniveau.utility.smallDiamondtext = [];
+                interniveau.utility.ecran = null;
+                interniveau.utility.buttonpast = null;
+                interniveau.utility.descriptiontext.text = "description";
+
 
                 world.timeScale = 1;
                 break;
             }
-            /*
-            let distButton = dist(mouse.x, mouse.y, interniveau.utility.smallDiamond[i].x, interniveau.utility.smallDiamond[i].y);
-            console.log(interniveau.utility.smallDiamond[i].text, distButton);
+
+
+            let distButton = dist(mouse.x, mouse.y, diamond.x, diamond.y);
+            
             if (distButton < 200) {
-                interniveau.utility.smallDiamond[i].scale = 1.1;
-                interniveau.utility.smallDiamond[i].text = dataAmelioration.description;
+                
+                
+
+                if (dataAmelioration && dataAmelioration.description) {
+                    interniveau.utility.descriptiontext.text = interniveau.wrapText(dataAmelioration.description, 120);
+                    diamond.scale = 1.2;
+                }
+                
+                    break;
+
+                
+                
+            } else {
+                diamond.scale = 1;
+                interniveau.utility.descriptiontext.text = "";
             }
-            else {
-                interniveau.utility.smallDiamond[i].scale = 1;
-                interniveau.utility.smallDiamond[i].text = "";
-            }
-            */
+
+
+            
+        
+            
         }
         if (
             interniveau.utility.buttonpast &&
@@ -1439,6 +1481,13 @@ let interniveau = {
             interniveau.utility.smallDiamond.forEach((diamond) =>
                 diamond.remove()
             );
+            interniveau.utility.smallDiamondtext = interniveau.utility.smallDiamondtext.filter(text => {
+                if (text.image) {
+                    text.remove();
+                    return false;
+                }
+                return true;
+            });
             interniveau.utility.largeDiamond.remove();
             interniveau.utility.smallDiamondtext.forEach((text) =>
                 text.remove()
@@ -1454,13 +1503,13 @@ let interniveau = {
         world.timeScale = 0;
         let centerX = player.sprite.x;
         let centerY = player.sprite.y;
-        let size = 800; // Size of the large diamond
+        let size = 700; // Size of the large diamond
 
         let ecran = new Sprite(centerX, centerY, 0, 0);
         ecran.width = windowWidth;
         ecran.height = windowHeight;
         ecran.color = "black";
-        ecran.opacity = 0.5;
+        ecran.opacity = 0.7;
         ecran.collider = "none";
         ecran.layer = 100000000;
         interniveau.utility.ecran = ecran;
@@ -1492,12 +1541,26 @@ let interniveau = {
         largeDiamond.layer = 100000000;
         largeDiamond.collider = "none";
         largeDiamond.image= "assets/planche.png";
-        largeDiamond.image.scale=1.2;
+        largeDiamond.image.scale=1.1;
 
         interniveau.utility.largeDiamond = largeDiamond;
 
+        
+        let descriptiontext = new Sprite(
+            player.sprite.x + windowWidth / 2 - 200,
+            player.sprite.y - windowHeight / 2 + 50,
+            0,
+            0
+        );
+        descriptiontext.textSize= 40;
+        
+        descriptiontext.textColor = "white";
+        descriptiontext.collider = "none";
+        descriptiontext.layer = 100000000;
+        interniveau.utility.descriptiontext = descriptiontext;
+
         // Create the four smaller diamonds
-        let smallSize = size / 2.7;
+        let smallSize = size / 2.6;
         let offsets = [
             { x: 230, y: 0 },
             { x: -230, y: 0 },
@@ -1531,27 +1594,84 @@ let interniveau = {
             interniveau.utility.smallDiamond.push(smallDiamond);
             smallDiamond.idAmelioration = ids[i];
 
+
+
+            if (dataAmelioration.image) {
+                let smallDiamondimage = new Sprite(
+                    centerX + offset.x,
+                    centerY + offset.y - 75,
+                    120,
+                    120
+                );
+                smallDiamondimage.image = dataAmelioration.image;
+                smallDiamondimage.collider = "none";
+                smallDiamondimage.image.scale = 2;
+                smallDiamondimage.layer = 100000000;
+            
+                interniveau.utility.smallDiamond.push(smallDiamondimage);
+            }
+               
+            
+
             let smallDiamondtext = new Sprite(
                 centerX + offset.x,
-                centerY + offset.y,
+                centerY + offset.y+25 ,
                 0,
                 0
             );
-            smallDiamondtext.text = dataAmelioration.nom;
-            smallDiamondtext.textSize = 50;
+            smallDiamondtext.text = interniveau.wrapText(dataAmelioration.nom, 70);
+            smallDiamondtext.textSize = 40;
             smallDiamondtext.textColor = "white";
+            smallDiamondtext.collider = "none";
 
             interniveau.utility.smallDiamondtext.push(smallDiamondtext);
+            
             i++;
         }
 
     },
 
-    createtext: function (texte) {
+     wrapText: function(text, maxWidth) {
+        let words = text.split(" ");
+        let line = "";
+        let result = "";
+    
+        for (let i = 0; i < words.length; i++) {
+            let testLine = line + words[i] + " ";
+            let testWidth = textWidth(testLine); // Vérifie la largeur avec textWidth()
+            if (testWidth > maxWidth) {
+                result += line + "\n"; // Passe à la ligne suivante
+                line = words[i] + " ";
+            } else {
+                line = testLine;
+            }
+        }
+        result += line; // Ajouter la dernière ligne
+        return result;
+    },
+
+    createtext: function (texte, imag) {
         if (interniveau.utility.textamelioration.length === 0) {
-            let textamelioration = new Sprite(
-                player.sprite.x - windowWidth / 2 + 200,
+            let ameliorationimage = new Sprite(
+                player.sprite.x - windowWidth / 2 + 100,
                 player.sprite.y - windowHeight / 2 + 300,
+                10,
+                10
+            );
+            if (imag) {
+                ameliorationimage.image = imag;
+                ameliorationimage.collider = "none";
+            ameliorationimage.layer = 100000000;
+            ameliorationimage.image.scale = 1;
+            interniveau.utility.textamelioration.push(ameliorationimage);
+            } else {
+                console.error("Image is undefined");
+            }
+            
+
+            let textamelioration = new Sprite(
+                ameliorationimage.x + ameliorationimage.width + 20,
+                ameliorationimage.y,
                 0,
                 0
             );
@@ -1560,15 +1680,35 @@ let interniveau = {
             textamelioration.collider = "none";
             textamelioration.textColor = "white";
             textamelioration.layer = 100000000;
+
             interniveau.utility.textamelioration.push(textamelioration);
+
         } else {
             let lastText =
                 interniveau.utility.textamelioration[
                     interniveau.utility.textamelioration.length - 1
                 ];
-            let textamelioration = new Sprite(
+            let ameliorationimage = new Sprite(
                 lastText.x,
                 lastText.y + 50,
+                10,
+                10
+            );
+            if (imag) {
+                ameliorationimage.image = imag;
+                ameliorationimage.collider = "none";
+            ameliorationimage.layer = 100000000;
+            ameliorationimage.image.scale = 1;
+            
+            interniveau.utility.textamelioration.push(ameliorationimage);
+            } else {
+                console.error("Image is undefined");
+            }
+            
+
+            let textamelioration = new Sprite(
+                ameliorationimage.x + ameliorationimage.width + 20,
+                ameliorationimage.y,
                 0,
                 0
             );
@@ -1577,7 +1717,8 @@ let interniveau = {
             textamelioration.collider = "none";
             textamelioration.textColor = "white";
             textamelioration.layer = 100000000;
-            interniveau.utility.textamelioration.push(textamelioration);
+
+            interniveau.utility.textamelioration.push( textamelioration);
         }
     },
 };
@@ -1608,13 +1749,14 @@ let ameliorations = {
         //         },
         //     ],
         //     debloque: [Liste des IDS débloquées],
-        //     bannit: [Liste des IDS bannies],
+        //     bannit: [Liste des IDS bannies], // Note : Pas besoin de bannir les améliorations précédentes, le jeu le fait automatiquement.
         // },
 
         { // 1 - Boulets en plomb
             id: 1,
             nom: "Boulets en plomb",
             type: "amelioration",
+            image: "assets/boulet-plomb.png",
             emplacement: undefined,
             description: "Dommage d'avoir mis notre tailleur de pierre au chômage. Mais bon, ça fait plus de dégâts.",
             initiale: true,
@@ -1640,6 +1782,7 @@ let ameliorations = {
             id: 2,
             nom: "Boulets légers",
             type: "amelioration",
+            image: "assets/boulet-leger.png",
             emplacement: undefined,
             description: "On s'est dit qu'avec des boulets plus légers, on pourrait en emporter plus.",
             initiale: true,
@@ -1665,6 +1808,7 @@ let ameliorations = {
             id: 3,
             nom: "Boulets taillés",
             type: "amelioration",
+            image: "assets/boulet-taille.png",
             emplacement: undefined,
             description: "On a donné encore plus de travail au tailleur de pierre ! Comment ça, on l'a viré ?...",
             initiale: true,
@@ -1679,7 +1823,7 @@ let ameliorations = {
                     type: "arme",
                     stat: "degats_base",
                     operation: "fixe",
-                    valeur: -5,
+                    valeur: -2,
                 },
                 {
                     type: "arme",
@@ -1696,6 +1840,7 @@ let ameliorations = {
             id: 4,
             nom: "Inspection du charpentier",
             type: "amelioration",
+            image: "assets/Inspection-du-charpentier.png",
             emplacement: undefined,
             description: "Si on en croit le charpentier, le bateau est au top de la forme...",
             initiale: true,
@@ -1715,6 +1860,7 @@ let ameliorations = {
             id: 5,
             nom: "Gros calibre",
             type: "amelioration",
+            image: "assets/Gros-calibre.png",
             emplacement: undefined,
             description: "Des boulets plus gros = des trous plus gros. Logique ! Et ne me dites pas 'mais c'est lourd'.",
             initiale: false,
@@ -1752,6 +1898,7 @@ let ameliorations = {
             id: 6,
             nom: "Sacs de poudre",
             type: "amelioration",
+            image: "assets/Sacs-de-poudre.png",
             emplacement: undefined,
             description: "Tiens, eh, et si on préparait la poudre AVANT d'en avoir besoin ?",
             initiale: false,
@@ -1777,6 +1924,7 @@ let ameliorations = {
             id: 7,
             nom: "Tireurs déchaînés",
             type: "amelioration",
+            image: "assets/Tireurs-déchaînés.png",
             emplacement: undefined,
             description: "Le capitaine a donné un sacré discours à l'équipage, mais maintenant ils sont surexcités !",
             initiale: false,
@@ -1802,6 +1950,7 @@ let ameliorations = {
             id: 8,
             nom: "Tireurs attentionnés",
             type: "amelioration",
+            image: "assets/Tireurs-attentionnés.png",
             emplacement: undefined,
             description: "On a entraîné les tireurs à être plus précis. Ils ont même arrêté de tirer sur les mouettes !",
             initiale: false,
@@ -1826,7 +1975,8 @@ let ameliorations = {
         { // 9 - Pièces de rechange
             id: 9,
             nom: "Pièces de rechange",
-            type: "amelioration",
+            type: "amelioration",            
+            image: "assets/Pièces-de-rechange.png",
             emplacement: undefined,
             description: "Le contremaître a eu l'idée d'emporter des pièces en plus, 'au cas où'. Mouais...",
             initiale: false,
@@ -1852,6 +2002,7 @@ let ameliorations = {
             id: 10,
             nom: "Coque épaisse",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "On s'est dit qu'une coque ça protégeait bien. Du coup, on s'est dit : eh, pourquoi pas deux ?",
             initiale: false,
@@ -1883,6 +2034,7 @@ let ameliorations = {
             id: 11,
             nom: "Boulets XL",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "A deux doigts d'inventer la Grosse Bertha.",
             initiale: false,
@@ -1913,13 +2065,14 @@ let ameliorations = {
                 }
             ],
             debloque: [],
-            bannit: [2],
+            bannit: [2, 26],
         },
 
         { // 12 - Barils de rhum
             id: 12,
             nom: "Barils de rhum",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Le capitaine a eu une idée de génie : il a dit 'et si on buvait un coup ?' !",
             initiale: false,
@@ -1951,6 +2104,7 @@ let ameliorations = {
             id: 13,
             nom: "Double dose de poudre",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Bon, normalement, les canons devraient tenir. Normalement.",
             initiale: false,
@@ -1975,13 +2129,14 @@ let ameliorations = {
                 }
             ],
             debloque: [],
-            bannit: [],
+            bannit: [24],
         },
 
         { // 14 - Charpentier de bord
             id: 14,
             nom: "Charpentier de bord",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Le charpentier a dit 'je vais réparer le bateau'. On s'est dit qu'au final il avait qu'à venir avec nous.",
             initiale: false,
@@ -2007,6 +2162,7 @@ let ameliorations = {
             id: 15,
             nom: "Charpentier expert",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Ca fait quand même 50 ans qu'il est là, non ? MAIS COMMENT IL FAIT ??",
             initiale: false,
@@ -2024,7 +2180,7 @@ let ameliorations = {
                     valeur: -0.1,
                 },
             ],
-            debloque: [17],
+            debloque: [17, 37],
             bannit: [14],
         },
 
@@ -2032,6 +2188,7 @@ let ameliorations = {
             id: 16,
             nom: "Réparations en mer",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "On a dit au charpentier 'tu répares le bateau'. Il a dit 'maintenant ?'. Bah oui, maintenant. Tu veux couler ?",
             initiale: false,
@@ -2057,6 +2214,7 @@ let ameliorations = {
             id: 17,
             nom: "Plaques de fer",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "On a remarqué que quand le capitaine d'avant s'est pris un boulet, il restait que le métal. Super, l'idée !",
             initiale: false,
@@ -2088,6 +2246,7 @@ let ameliorations = {
             id: 18,
             nom: "Fraude fiscale",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Vous êtes vraiment en train de nous dire que c'est illégal ? ON EST DES PIRATES !",
             initiale: false,
@@ -2113,6 +2272,7 @@ let ameliorations = {
             id: 19,
             nom: "Planches 'économisées'",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Non non, je te PROMETS, y'en a vraiment pas besoin. Promis juré.",
             initiale: false,
@@ -2144,6 +2304,7 @@ let ameliorations = {
             id: 20,
             nom: "Equipage barbare",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Demandez pas ce qui est arrivé à l'équipage précédent. On a dit 'barbare', on a pas dit 'gentil'.",
             initiale: false,
@@ -2175,6 +2336,7 @@ let ameliorations = {
             id: 21,
             nom: "Boucliers viking",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "C'est joli et en plus ça nous protège. De toute façon on a pas le choix, on a plus de planches.",
             initiale: false,
@@ -2200,6 +2362,7 @@ let ameliorations = {
             id: 22,
             nom: "Mini rations",
             type: "amelioration",
+            image: "",
             emplacement: undefined,
             description: "Bon, alors, certes, on est plus légers, mais du coup l'équipage est pas super content.",
             initiale: false,
@@ -2227,6 +2390,260 @@ let ameliorations = {
                     stat: "recharge",
                     operation: "fixe",
                     valeur: 0.2,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        { // 23 - Boulets fendus
+            id: 23,
+            nom: "Boulets fendus",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Alors à la base c'était pas fait exprès, mais on s'est rendu compte que c'était pas si mal.",
+            initiale: true,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "degats_base",
+                    operation: "mult",
+                    valeur: 0.75,
+                },
+                {
+                    type: "arme",
+                    stat: "projectiles",
+                    operation: "fixe",
+                    valeur: 1,
+                }
+            ],
+            debloque: [25],
+            bannit: [],
+        },
+
+        { // 24 - Poudre améliorée
+            id: 24,
+            nom: "Poudre améliorée",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Le cousin chimiste du contremaître nous a concocté une poudre spéciale...",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: -2,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: 50,
+                }
+            ],
+            debloque: [6],
+            bannit: [13],
+        },
+
+        { // 25 - Canons doubles
+            id: 25,
+            nom: "Canons doubles",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Qu'est-ce qui est mieux qu'un canon ? Deux canons !",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "projectiles",
+                    operation: "fixe",
+                    valeur: 1,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: 0.2,
+                }
+            ],
+            debloque: [26],
+            bannit: [],
+        },
+
+        { // 26 - Bourrage
+            id: 26,
+            nom: "Bourrage",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Franchement, je pensais même pas que ça allait marcher.",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "projectiles",
+                    operation: "fixe",
+                    valeur: 2,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "mult",
+                    valeur: 1.5,
+                },
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: -50,
+                }
+            ],
+            debloque: [],
+            bannit: [11],
+        },
+
+        { // 27 - Eau-de-vie
+            id: 27,
+            nom: "Eau-de-vie",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Z'esttt francemeenttt pas maaaaal, l'oooooo d'viiie !!!1!",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: 30,
+                },
+                {
+                    type: "bateau",
+                    stat: "resistance_feu",
+                    operation: "fixe",
+                    valeur: 0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: 5,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        { // 28 - Longue-vue
+            id: 28,
+            nom: "Longue-vue",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "C'est pas pour voir les étoiles, mais ça aide à viser plus loin.",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: 50,
+                },
+            ],
+            debloque: [29],
+            bannit: [],
+        },
+
+        { // 29 - Longue-vue de précision
+            id: 29,
+            nom: "Longue-vue de précision",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "Tiens, bah maintenant vous pouvez utiliser l'ancienne pour voir les étoiles.",
+            initiale: false,
+            effets: [
+                {
+                    type: "arme",
+                    stat: "portee",
+                    operation: "fixe",
+                    valeur: 50,
+                },
+                {
+                    type: "arme",
+                    stat: "dispersion",
+                    operation: "fixe",
+                    valeur: -2,
+                }
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        { // 30 - Equipage en armure
+            id: 30,
+            nom: "Equipage en armure",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "On se souviendra de Michel et Patrick, qui étaient trop lourds pour la barque. Et pour nager.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: 20,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+            ],
+            debloque: [],
+            bannit: [],
+        },
+
+        // 31 -> 36 à venir
+
+        { // 37 - Vieux loups de mer
+            id: 37,
+            nom: "Vieux loups de mer",
+            type: "amelioration",
+            image: "",
+            emplacement: undefined,
+            description: "On en a vu des vertes et des pas mûres, mais on a appris des trucs.",
+            initiale: false,
+            effets: [
+                {
+                    type: "bateau",
+                    stat: "vie",
+                    operation: "fixe",
+                    valeur: -10,
+                },
+                {
+                    type: "arme",
+                    stat: "recharge",
+                    operation: "fixe",
+                    valeur: -0.1,
+                },
+                {
+                    type: "arme",
+                    stat: "degats_base",
+                    operation: "fixe",
+                    valeur: 3,
                 }
             ],
             debloque: [],
